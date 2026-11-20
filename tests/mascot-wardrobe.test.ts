@@ -4,6 +4,7 @@ import test from "node:test";
 import { normalizeWardrobeAccessories, toggleWardrobeAccessory, wardrobeAccessorySlots } from "../src/services/wardrobeAccessorySlots.ts";
 
 const component = readFileSync(new URL("../src/features/MascotWardrobe.tsx", import.meta.url), "utf8");
+const artwork = readFileSync(new URL("../src/components/WardrobeArtwork.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/features/mascot-wardrobe.css", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/services/mascotWardrobe.ts", import.meta.url), "utf8");
 const wornModels = readFileSync(new URL("../src/services/wardrobeWornModels.ts", import.meta.url), "utf8");
@@ -19,9 +20,12 @@ test("profile quick access and the app shell expose the cat wardrobe", () => {
   assert.match(profile, /lazy\(\(\) => import\("\.\/MascotWardrobe"\)\)/);
 });
 
-test("wardrobe background stays layered while model fallback uses the exact approved front", () => {
-  assert.match(component, /wardrobe2dFrontImage\(preview\?\.accessoryIds \?\? \[\]\)/);
-  assert.match(component, /mascot-wardrobe-model-fallback/);
+test("wardrobe keeps the selected skin and accessory in a static 2D preview", () => {
+  assert.match(component, /<WardrobeArtwork selection=\{preview\}/);
+  assert.match(artwork, /wardrobeItem\(selection\.skinId\)/);
+  assert.match(artwork, /href=\{skin\.art\}/);
+  assert.match(artwork, /href=\{accessory\.art\}/);
+  assert.doesNotMatch(component, /WardrobeTurntable|wardrobeScene|requestAnimationFrame|setPlayingMotion/);
   assert.match(component, /className="mascot-wardrobe-background"/);
   assert.match(component, /is-\$\{background\.previewClass\}/);
   assert.match(service, /accessory-cloud-scarf\.png/);
@@ -47,10 +51,9 @@ test("the eight Figma wardrobe states have working interaction counterparts", ()
   assert.match(component, /accessory: \{ zh: "饰品"/);
   assert.match(component, /background: \{ zh: "背景"/);
   assert.match(component, /"confirm" \| "success" \| "insufficient"/);
-  assert.match(component, /当前搭配/);
+  assert.match(component, /label=\{summary\}/);
   assert.doesNotMatch(component, /正在试穿|未拥有/);
-  assert.match(component, /切换到二维正面/);
-  assert.match(component, /wardrobe2dFrontImage/);
+  assert.match(component, /data-renderer="2d-static"/);
   assert.doesNotMatch(component, /captureFrontFrames|toDataURL/);
   assert.match(component, /确认兑换/);
   assert.match(component, /立即穿戴/);
@@ -58,18 +61,15 @@ test("the eight Figma wardrobe states have working interaction counterparts", ()
   assert.match(component, /disabled=\{busy !== null \|\| exactCurrentLook\}/);
 });
 
-test("2D mode maps the approved base and 17 accessory fronts", () => {
+test("the approved original front images remain preserved without loading an animated cat in wardrobe", () => {
   assert.equal((flatFronts.match(/\.\.\/assets\/wardrobe\/front\/accessory-/g) ?? []).length, 18);
   assert.equal((flatFronts.match(/^ {2}"accessory-[^"]+":/gm) ?? []).length, 18);
   assert.match(flatFronts, /"accessory-none": baseFront/);
   assert.match(flatFronts, /"accessory-bell-collar": bellCollarFront/);
   assert.match(flatFronts, /accessoryIds\[accessoryIds\.length - 1\]/);
   assert.match(flatFronts, /wardrobe2dBaseMotionLayers/);
-  assert.match(component, /className="mascot-wardrobe-flat-rig"/);
-  assert.match(component, /className="mascot-wardrobe-flat-paw"/);
-  assert.match(component, /setPlayingMotion\("wave"\)/);
-  assert.match(styles, /@keyframes wardrobe-2d-double-wave/);
-  assert.match(styles, /@keyframes wardrobe-2d-ambient-wave/);
+  assert.doesNotMatch(component, /mascot-wardrobe-flat-rig|mascot-wardrobe-flat-paw|playingMotion/);
+  assert.doesNotMatch(styles, /@keyframes wardrobe-2d-/);
 });
 
 test("wardrobe layout retains touch targets and responsive phone states", () => {
@@ -83,8 +83,6 @@ test("wardrobe layout retains touch targets and responsive phone states", () => 
   assert.match(styles, /\.mascot-wardrobe-page \{[^}]*grid-template-columns: repeat\(2,/s);
   assert.match(component, /Math\.ceil\(currentItems\.length \/ 4\)/);
   assert.match(component, /currentItems\.slice\(index \* 4, index \* 4 \+ 4\)/);
-  assert.match(component, /className="mascot-wardrobe-preview-frame"/);
-  assert.match(styles, /\.mascot-wardrobe-preview-frame \{[^}]*border: 1px dashed[^}]*pointer-events: none;/s);
   assert.match(styles, /data-app-skin="glacier-mist"[^}]+\.mascot-wardrobe-preview/s);
   assert.match(styles, /data-app-skin="violet-dusk"[^}]+\.mascot-wardrobe-preview/s);
   assert.match(styles, /data-app-skin="sky-ripple"[^}]+\.mascot-wardrobe-preview/s);
@@ -115,12 +113,11 @@ test("every accessory choice maps to one complete worn-cat GLB", () => {
   for (const id of ids) assert.match(wornModels, new RegExp(`"${id}"`));
 });
 
-test("a newly selected accessory never displays the previous 3D model while loading", () => {
-  assert.match(component, /turntableStatus !== "ready" && <img className="mascot-wardrobe-flat-frame mascot-wardrobe-model-fallback"/);
-  assert.match(styles, /data-renderer="loading"[^}]+\.mascot-wardrobe-turntable/s);
-  const turntable = readFileSync(new URL("../src/components/WardrobeTurntable.tsx", import.meta.url), "utf8");
-  assert.match(turntable, /dataset\.wornModel !== expected/);
-  assert.match(turntable, /attributeFilter: \["data-worn-model", "data-pending-model", "data-model-error"\]/);
+test("all wardrobe transaction sheets share a non-dimming accessible presentation boundary", () => {
+  assert.match(component, /<BottomSheet/);
+  assert.match(component, /busy=\{busy !== null\}/);
+  assert.doesNotMatch(component, /mascot-wardrobe-sheet-backdrop|mascot-wardrobe-sheet-close/);
+  assert.match(component, /nava-sheet-success-mark/);
 });
 
 test("wardrobe redemption is authenticated, idempotent and shares reward balance", () => {

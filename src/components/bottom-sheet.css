@@ -1,0 +1,60 @@
+.nava-bottom-sheet-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.nava-bottom-sheet-layer.is-viewport { position: fixed; }
+.nava-bottom-sheet {
+  --sheet-ink: var(--text, #25345a);
+  width: min(100%, 430px);
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, .94);
+  border-radius: 28px;
+  background: var(--surface, #f8faff);
+  color: var(--sheet-ink);
+  box-shadow: 0 8px 28px rgba(28, 48, 77, .18);
+  animation: nava-sheet-enter 260ms cubic-bezier(.22, .8, .25, 1) both;
+  transition: translate 180ms ease-out;
+  overscroll-behavior: contain;
+}
+.nava-bottom-sheet[data-dragging="true"] { transition: none; }
+.nava-bottom-sheet[data-closing="true"] { animation: nava-sheet-exit 180ms ease-in both; pointer-events: none; }
+.nava-bottom-sheet-grabber {
+  flex: 0 0 44px;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  border-radius: 28px 28px 0 0;
+  color: inherit;
+  background: transparent;
+  touch-action: none;
+  cursor: grab;
+}
+.nava-bottom-sheet-grabber span { width: 36px; height: 4px; border-radius: 999px; background: currentColor; opacity: .28; }
+.nava-bottom-sheet-grabber:active { cursor: grabbing; }
+.nava-bottom-sheet-grabber:focus-visible { outline: 2px solid var(--primary, #307b96); outline-offset: -5px; }
+.nava-bottom-sheet-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px 12px; }
+.nava-sheet-success-mark { color: #39a584; animation: nava-sheet-check-pop 420ms cubic-bezier(.2, .8, .25, 1) both; }
+.nava-sheet-success-mark path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: nava-sheet-check-draw 380ms 80ms ease-out forwards; }
+@keyframes nava-sheet-enter { from { transform: translateY(calc(100% + 40px)); } to { transform: translateY(0); } }
+@keyframes nava-sheet-exit { from { transform: translateY(0); } to { transform: translateY(calc(100% + 40px)); } }
+@keyframes nava-sheet-check-draw { to { stroke-dashoffset: 0; } }
+@keyframes nava-sheet-check-pop { from { transform: scale(.88); opacity: .5; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .nava-bottom-sheet, .nava-bottom-sheet[data-closing="true"], .nava-sheet-success-mark, .nava-sheet-success-mark path { animation: none; transition: none; }
+  .nava-sheet-success-mark path { stroke-dashoffset: 0; }
+}
