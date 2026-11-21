@@ -61,7 +61,8 @@ async function main() {
       page.on("console", (message) => { if (message.type() === "error") browserErrors.push(`${viewport.name}: ${message.text()}`); });
 
       for (const module of modules) {
-        await page.goto(`${baseUrl}?demo=1#tab=record&module=${module.route}`, { waitUntil: "networkidle" });
+        // Assert the actual ready UI below; background connections need not go idle.
+        await page.goto(`${baseUrl}?demo=1#tab=record&module=${module.route}`, { waitUntil: "domcontentloaded" });
         const iframe = `.journal-experience:not(.is-staged) iframe[src$="category=${module.category}"]`;
         await expect(page.locator(iframe)).toBeVisible({ timeout: 10_000 });
         await expect(page.locator(".journal-loading")).toBeHidden({ timeout: 10_000 });

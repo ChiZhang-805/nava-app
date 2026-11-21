@@ -243,7 +243,7 @@ function CalendarScreen({
 
       <section className="calendar-agenda" aria-label={locale==='zh'?'当天活动':'Daily activities'} data-selected-date={selectedDate}>
         <div className="calendar-curve">
-          <svg viewBox="0 0 400 45" preserveAspectRatio="none" aria-hidden="true"><path d="M0 45 C0 22 16 6 42 6 H108 C145 6 153 37 200 37 C247 37 255 6 292 6 H358 C384 6 400 22 400 45 Z"/></svg>
+          <svg viewBox="0 0 400 45" preserveAspectRatio="none" aria-hidden="true"><path d="M0 37 C24 37 12 6 42 6 H108 C145 6 153 37 200 37 C247 37 255 6 292 6 H358 C388 6 376 37 400 37 V45 H0 Z"/></svg>
           <button type="button" className="calendar-expand" aria-label={locale==='zh'?(expanded?'收起整月':'展开整月'):(expanded?'Collapse month':'Expand month')} aria-expanded={expanded} aria-controls="calendar-date-grid" onClick={()=>setExpanded(v=>!v)}>{expanded?<ChevronUp size={20} aria-hidden="true"/>:<ChevronDown size={20} aria-hidden="true"/>}</button>
         </div>
         <header className="calendar-agenda-heading"><h2>{localDate(selectedDate).toLocaleDateString(locale==='zh'?'zh-CN':'en-US',{month:'long',day:'numeric',weekday:'short'})}</h2><button type="button" onClick={()=>selectDate(deviceDate)}>{locale==='zh'?'今天':'Today'}</button></header>

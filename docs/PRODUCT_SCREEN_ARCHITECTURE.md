@@ -336,9 +336,9 @@ A05 当前混合版实现为 `public/journal/onboarding.html` 的初见手记。
 
 核对了 [多闪开发者 App Store 介绍](https://apps.apple.com/cn/app/id1435602536)、[投喂玩法视频合集](https://www.douyin.com/shipin/7637686802660902938)、[食物与互动玩法合集](https://www.douyin.com/shipin/7638791458274936882)，并对照用户提供的宠物房与聊天截图。官方商店介绍能确认聊天、好友动态、火人成长任务；视频中能观察到双人合养、投喂、装扮、个性反馈及拍照同款，但合集包含创作者内容，具体限制和数值未经官方完整规则核验。没有找到足以复刻的完整消化/运动时间表。
 
-NAVA 采用「好友聊天 → 双方同意养猫 → 选择照料 → 共同看到时间和记录」的主循环，选择差异来自类型和时长。成长按小猫时区的完成日期/类别计算，每天每类别只计一次，不因漏一天扣除既有成长；不引入付费保火、惩罚断签或虚假 AI 反馈。
+NAVA 采用「接受好友 → 自动共养纳瓦咪 → 聊天与选择照料」的主循环，选择差异来自类型和时长。成长按小猫时区的完成日期/类别计算，每天每类别只计一次，不因漏一天扣除既有成长；不引入付费保火、惩罚断签或虚假 AI 反馈。
 
-苹果 NameDrop 是系统联系人交换，不是第三方好友 API。近距离加好友尚未实现；如继续开发，应通过 Core Bluetooth 交换临时邀请码并再次确认，双真机验证权限、超时与多人干扰。参考 [NameDrop](https://support.apple.com/guide/iphone/iph1b6c664b7/ios)、[Core Bluetooth](https://developer.apple.com/documentation/corebluetooth/transferring-data-between-bluetooth-low-energy-devices)。
+苹果 NameDrop 是系统联系人交换，不是第三方好友 API。本次面对面使用 CoreMotion 摇动和 Network.framework Bonjour 点对点发现，交换短效随机凭据，再由认证 RPC 解析和请求加好友；不是 NFC 碰一碰，也不宣称纯蓝牙连接。参考 [NameDrop](https://support.apple.com/guide/iphone/iph1b6c664b7/ios)、[Apple Network 迁移说明](https://developer.apple.com/documentation/technotes/tn3213-moving-from-multipeer-connectivity-to-network-framework)。
 
 咪友空间直接进入聊天列表，不显示独立名字设置页；添加好友统一放右上角加号。
 搜索框仅有一层容器，输入元素透明，状态栏延续页面背景。面对面是独立子页，有摇动触发、
@@ -348,7 +348,7 @@ NAVA 采用「好友聊天 → 双方同意养猫 → 选择照料 → 共同看
 ### 日历首屏（2026-11-22 更新）
 
 按侧聊确认的概念图改为默认本周七列日期，选中日使用暖黄色圆形；其他日期没有卡片背景。
-日历与当天记录之间是一整片带中央浅弧的纸面，中央小圆点具有 44px 点击区、展开状态与无障碍名称。
+日历与当天记录之间是一整片带水平平台、中央及两侧凹口的纸面，中央上下尖角具有 44px 点击区、展开状态与无障碍名称。
 点按原位展开整月，再点收起至选中日所在周，列表随之下移；减少动态效果设置关闭高度过渡。
 选择日期只更新下方真实记录时间轴；时间取记录中的活动起止字段，无活动时间则显示缺失，不使用 created_at 代替。
 既有日记与旧六模块记录均接入；不会将概念图样例注入用户账户。
