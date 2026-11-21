@@ -186,7 +186,6 @@ function MobileShell({
   });
   const rewardUserRef = useRef(user?.id);
   rewardUserRef.current = user?.id;
-  useEffect(() => setAppSkin(readAppSkin(user?.id)), [user?.id]);
 
   const changeAppSkin = useCallback((skin: AppSkin) => {
     setAppSkin(skin);
@@ -956,18 +955,17 @@ function MobileShell({
 }
 
 function AppContent({
-  signedOutScreenSeen: initialSignedOutScreenSeen = false,
+  preparing,
   showInitialHomeGuidance = false,
   onReady,
 }: {
-  signedOutScreenSeen?: boolean;
+  preparing: boolean;
   showInitialHomeGuidance?: boolean;
   onReady?: (userId: string) => void;
 }) {
   const configError = assertConfig();
   const { user, loading, passwordRecovery } = useAuth();
   const { locale } = useLocale();
-  const signedOutScreenSeen = useRef(initialSignedOutScreenSeen);
   const userId = user?.id ?? null;
   const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
   const [onboardingRoute, setOnboardingRoute] = useState<{ userId: string; required: boolean; status?: OnboardingStatus | null; mode?: "first" | "review" } | null>(null);
@@ -1014,7 +1012,6 @@ function AppContent({
     };
   }, [forceOnboarding, locale, onboardingRetryKey, userId]);
 
-  if (!loading && !user) signedOutScreenSeen.current = true;
   const checkingOnboarding = Boolean(userId && onboardingRoute?.userId !== userId);
 
   useEffect(() => {
@@ -1053,6 +1050,8 @@ function AppContent({
     setCompletionPreviewScene(scene);
   }, []);
   const closeCompletionPreview = useCallback(() => setCompletionPreviewScene(null), []);
+
+  if (preparing) return null;
 
   let screen;
   if (configError && !isDemoMode()) screen = <ConfigErrorScreen message={configError} />;
@@ -1109,13 +1108,13 @@ function AppContent({
 }
 
 export default function AuthenticatedApp({
-  signedOutScreenSeen = false,
+  preparing = false,
   showInitialHomeGuidance = false,
   onReady,
 }: {
-  signedOutScreenSeen?: boolean;
+  preparing?: boolean;
   showInitialHomeGuidance?: boolean;
   onReady?: (userId: string) => void;
 }) {
-  return <AppContent signedOutScreenSeen={signedOutScreenSeen} showInitialHomeGuidance={showInitialHomeGuidance} onReady={onReady} />;
+  return <AppContent preparing={preparing} showInitialHomeGuidance={showInitialHomeGuidance} onReady={onReady} />;
 }

@@ -256,6 +256,9 @@
   box-shadow: var(--skin-card-shadow);
   backdrop-filter: blur(18px) saturate(1.08);
 }
+.phone-frame[data-app-skin] .weekly-health-report > :is(.weekly-score-card, .weekly-trend-card, .weekly-insight-card) {
+  box-shadow: none;
+}
 .phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.profile-entry-header, .profile-nav-row) {
   border-color: var(--skin-divider);
 }
@@ -742,7 +745,7 @@
   /* WebKit can paint the flex canvas several pixels beyond the visible phone
      viewport. Keep the composer clear of that rounding error as well as the
      home-indicator gesture region. */
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .phone-frame[data-app-skin][data-shell-integrated="true"] > .figma-app-header::before,

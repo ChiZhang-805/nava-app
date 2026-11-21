@@ -15,10 +15,13 @@ function extensionOf(name: string) {
 
 export type PendingChatDocument = ChatDocumentContext;
 
-export function validateChatImage(file: File) {
-  const supported = supportedImageTypes.has(file.type.toLowerCase())
+export function isChatImageFile(file: File) {
+  return supportedImageTypes.has(file.type.toLowerCase())
     || (!file.type && supportedImageExtensions.has(extensionOf(file.name)));
-  if (!supported) return "unsupported" as const;
+}
+
+export function validateChatImage(file: File) {
+  if (!isChatImageFile(file)) return "unsupported" as const;
   if (file.size <= 0) return "empty" as const;
   if (file.size > IMAGE_MAX_BYTES) return "too_large" as const;
   return null;

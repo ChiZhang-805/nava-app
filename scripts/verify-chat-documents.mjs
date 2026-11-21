@@ -67,7 +67,7 @@ try {
       assert.equal(first.calls[0].body.dataType, null);
       assert.equal(first.calls[0].body.extractedData, null);
       assert.equal(first.calls[0].body.knowledge, null);
-      assert(first.stored.includes(`${caption}\n📎 reference.md`));
+      assert(first.stored.includes(`📎 reference.md\n${caption}`));
       assert(!first.stored.some((text) => text.includes('Example patient')));
       assert.equal(await page.locator('.structured-confirmation').count(), 0);
       await page.screenshot({ path: `${output}/${engine}-reference.png` });

@@ -1,7 +1,7 @@
 import { Activity } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { assertConfig } from "./config";
 import AuthScreen from "./features/AuthScreen";
@@ -12,7 +12,6 @@ import { SOCIAL_AUTH_RETURN_KEY } from "./services/auth";
 import type { OnboardingStatus } from "./services/onboarding";
 import { AuthProvider } from "./state/AuthProvider";
 import { useAuth } from "./state/authContext";
-import LoadingShell from "./components/LoadingShell";
 import DesktopDevicePreviewChrome from "./components/DesktopDevicePreviewChrome";
 
 const loadAuthenticatedApp = () => import("./App");
@@ -38,10 +37,6 @@ type NavaNativeAuthMessageWindow = Window & {
 function hasRecentSocialAuthReturn() {
   const startedAt = Number(window.sessionStorage.getItem(SOCIAL_AUTH_RETURN_KEY));
   return Number.isFinite(startedAt) && Date.now() - startedAt < 10 * 60 * 1000;
-}
-
-function LoadingScreen() {
-  return <LoadingShell />;
 }
 
 function ConfigErrorScreen({ message }: { message: string }) {
@@ -78,31 +73,38 @@ function BootstrapContent() {
   const configError = assertConfig();
   const { user, loading } = useAuth();
   const isNativePlatform = Capacitor.isNativePlatform();
-  const signedOutScreenSeen = useRef(false);
   const [freshAuthentication, setFreshAuthentication] = useState(false);
+  const [preparedUserId, setPreparedUserId] = useState<string | null>(null);
   const [sessionUnlocked, setSessionUnlocked] = useState(() => !isNativePlatform || hasRecentSocialAuthReturn());
   const [firstLoginPreviewOpen, setFirstLoginPreviewOpen] = useState(false);
   const [firstLoginPreviewKey, setFirstLoginPreviewKey] = useState(0);
   const authenticated = Boolean(user && sessionUnlocked);
+  const appUser = !loading && sessionUnlocked ? user : null;
+  const appUserId = appUser?.id;
+  const preparingApp = appUser !== null && preparedUserId !== appUser.id;
 
-  if (!loading && !authenticated) signedOutScreenSeen.current = true;
+  useEffect(() => {
+    if (!appUserId) setPreparedUserId(null);
+  }, [appUserId]);
 
   useEffect(() => {
     if (!isNativePlatform) return;
-    const lockSession = () => setSessionUnlocked(false);
+    const lockSession = () => {
+      setPreparedUserId(null);
+      setSessionUnlocked(false);
+    };
     const unlockSocialSession = () => {
       setFreshAuthentication(true);
       setSessionUnlocked(true);
     };
     window.addEventListener("nava:native-lock", lockSession);
     window.addEventListener("nava:social-auth-complete", unlockSocialSession);
-    const appStateListener = CapacitorApp.addListener("appStateChange", ({ isActive }) => {
-      if (!isActive) lockSession();
-    });
+    // iOS can temporarily resign active while a system picker is open.
+    const pauseListener = CapacitorApp.addListener("pause", lockSession);
     return () => {
       window.removeEventListener("nava:native-lock", lockSession);
       window.removeEventListener("nava:social-auth-complete", unlockSocialSession);
-      void appStateListener.then((listener) => listener.remove());
+      void pauseListener.then((listener) => listener.remove());
     };
   }, [isNativePlatform]);
 
@@ -149,28 +151,22 @@ function BootstrapContent() {
 
   return (
     <>
-      {(!user || loading) && (
+      {(!appUser || preparingApp) && (
         <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>
-          {firstLoginPreview ?? <AuthScreen onAuthenticated={() => {
+          {firstLoginPreview ?? <AuthScreen transitionPending={preparingApp} onAuthenticated={() => {
             setFreshAuthentication(true);
             setSessionUnlocked(true);
           }} />}
         </BootstrapStage>
       )}
-      {!loading && user && !sessionUnlocked && (
-        <BootstrapStage onFirstLoginPreview={openFirstLoginPreview}>
-          {firstLoginPreview ?? <AuthScreen onAuthenticated={() => {
-            setFreshAuthentication(true);
-            setSessionUnlocked(true);
-          }} />}
-        </BootstrapStage>
-      )}
-      {!loading && authenticated && (
-        <Suspense fallback={<BootstrapStage onFirstLoginPreview={openFirstLoginPreview}><LoadingScreen /></BootstrapStage>}>
-            <AuthenticatedApp
-              signedOutScreenSeen={signedOutScreenSeen.current}
-              showInitialHomeGuidance={freshAuthentication}
-            />
+      {appUser && (
+        <Suspense fallback={null}>
+          <AuthenticatedApp
+            key={appUser.id}
+            preparing={preparingApp}
+            onReady={setPreparedUserId}
+            showInitialHomeGuidance={freshAuthentication}
+          />
         </Suspense>
       )}
     </>

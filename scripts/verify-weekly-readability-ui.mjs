@@ -34,7 +34,7 @@ try {
         await page.addInitScript((value) => localStorage.setItem("nava.locale", value), locale);
         await page.goto(`http://127.0.0.1:5236/?demo=1${fixture ? "&qa=weekly-ai" : ""}#tab=record`, { waitUntil: "domcontentloaded" });
         if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
-        await page.locator('[data-health-category="all"]').click();
+        await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'all');
         await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
       };
       await open();
@@ -52,6 +52,8 @@ try {
             overflow: document.documentElement.scrollWidth - innerWidth,
             reportOverflow: report.scrollWidth - report.clientWidth,
             chart: box(chart), svg: svg ? box(svg) : null,
+            shadows: [report.querySelector(".weekly-score-card"), chart, card].map(node => getComputedStyle(node).boxShadow),
+            posterIconOnly: card.querySelector("header button")?.textContent.trim() === "",
             chartText: svgText.map((node) => ({ ...box(node), font: font(node) })),
             card: box(card), mascot: box(card.querySelector(".weekly-insight-mascot")),
             text: text.map((node) => ({ ...box(node), font: font(node), clipped: node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1 })),
@@ -61,6 +63,8 @@ try {
           };
         });
         assert(data.overflow <= 1 && data.reportOverflow <= 1, `${width}/${state}: horizontal overflow`);
+        assert.deepEqual(data.shadows, ["none", "none", "none"]);
+        assert(data.posterIconOnly);
         assert(data.stats.every(({ label, value, labelBox, valueBox, cell }) => label >= 11 && value >= 13 && labelBox.right + 3 <= valueBox.left && Math.abs((labelBox.top + labelBox.bottom - valueBox.top - valueBox.bottom) / 2) <= 1 && labelBox.left >= cell.left && valueBox.right <= cell.right), `${width}/${state}: stats must stay on one row`);
         assert(data.date >= 13);
         for (const item of data.text) {

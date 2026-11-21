@@ -134,6 +134,9 @@ try {
       assert.equal(await page.locator('.chat-message-row').count(), beforeCall, 'interrupted call must not submit a message');
       await page.locator(".chat-input-shell input").fill("今天状态不错，想聊聊休息。");
       await page.locator(".chat-input-shell input").press("Enter");
+      await expect(page.locator(".chat-input-shell input")).toHaveValue("");
+      await expect(page.locator(".chat-message-row.user").last()).toContainText("今天状态不错，想聊聊休息。");
+      await expect(page.locator(".error-text")).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => window.__speechQueue.length), { timeout: 30000 }).toBeGreaterThan(0);
       if (viewport.width > 700) await expect(page.locator('[data-preview-module="playback"]')).toBeVisible();
       await interrupt();

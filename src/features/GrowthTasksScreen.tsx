@@ -130,6 +130,9 @@ export default function GrowthTasksScreen({
 
   const level = Math.floor(displayedXp / 100) + 1;
   const progress = displayedXp % 100;
+  const xpToNextLevel = 100 - progress;
+  const firstVisibleLevel = Math.max(1, level - 1);
+  const visibleLevels = [firstVisibleLevel, firstVisibleLevel + 1, firstVisibleLevel + 2];
 
   if (loading) return <PageSkeleton variant="growth" />;
 
@@ -138,21 +141,27 @@ export default function GrowthTasksScreen({
       <section className={["growth-summary-card", settling ? "is-settling" : ""].filter(Boolean).join(" ")}>
         <div className="growth-level-orb"><Award size={26} /><strong>Lv.{level}</strong></div>
         <div className="growth-progress-copy">
-          <span>{locale === "zh" ? "累计成长" : "Total growth"}</span>
-          <strong aria-live="polite">{displayedXp} XP</strong>
+          <div className="growth-progress-heading">
+            <div className="growth-progress-total">
+              <span>{locale === "zh" ? "累计成长" : "Total growth"}</span>
+              <strong aria-live="polite">{displayedXp} XP</strong>
+            </div>
+            <button className="growth-level-details-toggle" type="button" aria-expanded={levelsOpen} aria-controls="growth-level-details" aria-label={locale === "zh" ? "成长等级" : "Growth levels"} onClick={() => setLevelsOpen(open => !open)}><Flame size={25} aria-hidden="true" /></button>
+          </div>
           <div className="growth-progress-track" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div>
-          <small>{locale === 'zh' ? `还差 ${100 - progress} XP，就到 Lv.${level + 1} 啦` : `${100 - progress} XP to Lv.${level + 1}`}</small>
-          {badges.length > 0 && <small>{locale === "zh" ? `已获得 ${badges.length} 枚徽章` : `${badges.length} badge${badges.length === 1 ? "" : "s"} earned`}</small>}
+          <div className="growth-progress-meta">
+            <small>{locale === "zh" ? `还差 ${xpToNextLevel} XP 到 Lv.${level + 1}` : `${xpToNextLevel} XP to Lv.${level + 1}`}</small>
+            {badges.length > 0 && <small>{locale === "zh" ? `${badges.length} 枚勋章` : `${badges.length} badge${badges.length === 1 ? "" : "s"}`}</small>}
+          </div>
         </div>
-        <button className="growth-level-details-toggle" type="button" aria-expanded={levelsOpen} aria-controls="growth-level-details" aria-label={locale === "zh" ? "查看等级规则" : "Level details"} onClick={() => setLevelsOpen(open => !open)}><Flame size={25} /></button>
       </section>
-      {levelsOpen && <section id="growth-level-details" className="growth-level-details">
-        <h3>{locale === "zh" ? "成长等级" : "Growth levels"}</h3>
-        <p>{locale === "zh" ? `再获得 ${100 - progress} XP 升至 Lv.${level + 1}` : `${100 - progress} XP to Lv.${level + 1}`}</p>
-        <p>{locale === "zh" ? "从 Lv.1 开始，每累计 100 XP 升一级，目前没有等级上限。" : "Start at Lv.1. Every 100 XP adds a level; there is currently no level cap."}</p>
-        <p>{locale === 'zh' ? 'XP 记录你的成长，积分可以在商城兑换。首页的节律分数反映近期状态，和成长等级是两回事。' : 'XP tracks your growth; points can be spent in the shop. Your home rhythm score reflects recent wellbeing, separately from your level.'}</p>
-        <ol>{Array.from({length: 5}, (_, index) => Math.max(1, level - 1) + index).map(item => <li key={item}><strong>Lv.{item}</strong><span>{(item - 1) * 100} XP</span></li>)}</ol>
-      </section>}
+      <section id="growth-level-details" className="growth-level-details" aria-labelledby="growth-level-heading" hidden={!levelsOpen}>
+        <h3 id="growth-level-heading">{locale === "zh" ? "成长等级" : "Growth levels"}</h3>
+        <p>{locale === "zh"
+          ? `再攒 ${xpToNextLevel} XP 就能升到 Lv.${level + 1}。成长从 Lv.1 开始，每积累 100 XP 升一级。积分可在商城兑换，首页的节律分数反映你的近期状态。`
+          : `Earn ${xpToNextLevel} more XP to reach Lv.${level + 1}. You start at Lv.1 and gain a level with every 100 XP. Spend points in the shop and check your home rhythm score for a view of your recent wellbeing.`}</p>
+        <ol>{visibleLevels.map(item => <li key={item}><strong>Lv.{item}</strong><span>{(item - 1) * 100} XP</span></li>)}</ol>
+      </section>
 
       <header className="growth-section-heading">
         <div><span>NAVA</span><h2>{locale === "zh" ? "成长任务" : "Growth tasks"}</h2></div>

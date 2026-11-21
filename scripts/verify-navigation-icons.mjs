@@ -162,7 +162,7 @@ try {
     if (Math.abs(fan.x - homeBounds.x - collapsedDock.surfaceLeft) > 1
       || Math.abs(fan.x + fan.width - homeBounds.x - collapsedDock.surfaceRight) > 1
       || Math.abs(fan.y + fan.height - collapsedDock.bottom) > 1
-      || fanHeight < 130 || fanHeight > 181 || closingGap < 10 || closingGap > 15) {
+      || fanHeight < 142 || fanHeight > 198 || closingGap < 10 || closingGap > 15) {
       throw new Error(`${viewport.label}: fan must share the dock edges and leave a close-button gap ${JSON.stringify({ fan, collapsedDock, fanHeight, closingGap })}`);
     }
     for (const entry of healthEntryGeometry) {

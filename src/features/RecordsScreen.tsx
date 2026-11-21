@@ -249,7 +249,7 @@ export default function RecordsScreen({
   const [todaySnapshot, setTodaySnapshot] = useState<TodaySnapshot | null>(null);
   const [trendBundle, setTrendBundle] = useState<TrendBundle | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [reportMode, setReportMode] = useState<"modules" | "weekly">("modules");
+  const [reportMode, setReportMode] = useState<"modules" | "weekly">("weekly");
   const [dnbReport, setDnbReport] = useState<DnbWeeklyReport | null>(null);
   const [weeklyShare, setWeeklyShare] = useState<{ report: DnbWeeklyReport; startDate: string; endDate: string; weekOffset: number } | null>(null);
   const [weeklyAiReport, setWeeklyAiReport] = useState<HealthAiReport | null>(null);
@@ -1337,13 +1337,13 @@ export default function RecordsScreen({
                 <strong>{weeklyAiReport?.provider === "demo"
                   ? (locale === "zh" ? "演示本周节律洞察" : "Demo weekly rhythm insights")
                   : (locale === "zh" ? "AI 本周节律洞察" : "AI weekly rhythm insights")}</strong>
-                <button type="button" className="weekly-share-button" disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={15} />{locale === "zh" ? "保存海报" : "Save poster"}</button>
+                <button type="button" className="weekly-share-button" aria-label={locale === "zh" ? "保存海报" : "Save poster"} disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={22} aria-hidden="true" /></button>
               </header>
               <div className="weekly-insight-body" aria-live="polite">
                 {weeklyAiLoading
                   ? <SkeletonLines count={4} />
                   : weeklyRecordedDays < 5
-                    ? <p>{locale === "zh" ? `本自然周目前有 ${weeklyRecordedDays} 个记录日；至少记录 5 天后才生成跨模块 AI 关联，避免用稀疏数据下结论。` : `This natural week currently has ${weeklyRecordedDays} recorded days. Cross-module AI analysis starts after 5 days to avoid conclusions from sparse data.`}</p>
+                    ? <p>{locale === "zh" ? `本周已记录 ${weeklyRecordedDays} 天。积累 5 个记录日后，就能查看 AI 节律关联。` : `This week has ${weeklyRecordedDays} recorded days. AI rhythm insights become available after 5 recorded days.`}</p>
                     : <div className="weekly-ai-summary-list">
                         {weeklyAiReport?.overview && <p className="weekly-ai-overview">{weeklyAiReport.overview}</p>}
                         <ul>{weeklyInsights.map((insight, index) => {

@@ -5,10 +5,17 @@ import { readFileSync } from "node:fs";
 const bootstrap = readFileSync(new URL("../src/AppBootstrap.tsx", import.meta.url), "utf8");
 const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 
-test("authenticated startup has one visible application path without a blank readiness gate", () => {
-  assert.doesNotMatch(bootstrap, /authenticated-app-gate|readyUserId|preserveSubmittedAuthScreen/);
-  assert.doesNotMatch(bootstrap, /AuthLoadingScreen|auth-skeleton/);
-  assert.match(bootstrap, /\{\(!user \|\| loading\) && \(/);
-  assert.doesNotMatch(app, /checkingOnboarding\)[\s\S]{0,100}<AuthScreen transitionPending/);
-  assert.match(app, /else if \(checkingOnboarding\) \{\s*screen = <LoadingScreen \/>/);
+test("sign-in keeps the login visible until the new account can render its saved skin", () => {
+  assert.match(bootstrap, /\{\(!appUser \|\| preparingApp\) && \(/);
+  assert.match(bootstrap, /<AuthScreen transitionPending=\{preparingApp\}/);
+  assert.match(bootstrap, /<Suspense fallback=\{null\}>/);
+  assert.match(bootstrap, /key=\{appUser.id\}/);
+  assert.match(app, /useState<AppSkin>\(\(\) => readAppSkin\(/);
+  assert.doesNotMatch(bootstrap, /LoadingScreen|LoadingShell|auth-skeleton/);
+});
+
+test("the native session locks only when it goes into the background", () => {
+  assert.match(bootstrap, /CapacitorApp.addListener\("pause", lockSession\)/);
+  assert.match(bootstrap, /addEventListener\("nava:native-lock", lockSession\)/);
+  assert.doesNotMatch(bootstrap, /appStateChange/);
 });

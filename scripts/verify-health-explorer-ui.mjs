@@ -47,6 +47,7 @@ try {
           const launch = page.locator('.launch-sequence');
           if (await launch.isVisible().catch(()=>false)) await launch.click();
           await expect(page.locator('[data-health-explorer]')).toBeVisible();
+          await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'all');
           for (const state of preview ? ['populated'] : ['populated','empty']) {
             if (state === 'empty') {
               await page.evaluate(()=> {
@@ -56,7 +57,7 @@ try {
               });
               await page.reload({waitUntil:'networkidle'});
               await expect(page.locator('[data-health-explorer]')).toBeVisible();
-              await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
+              await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'all');
             }
             await expect(page.locator('[data-health-category]:not([data-health-category=all])')).toHaveCount(7); // Demo sensor values are not Apple Health provenance.
             await expect(page.locator('[data-health-category=all]')).toHaveCount(1);
@@ -65,6 +66,7 @@ try {
               await expect(page.locator('.health-explorer-categories img')).toHaveCount(8);
               await expect.poll(() => page.locator('.health-explorer-categories img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
             }
+            await page.locator('[data-health-category="mood"]').click();
             await page.screenshot({ path:path.join(output,`${version}-${engine}-${viewport.width}${viewport.height < 640 ? '-short' : ''}-${locale}-${state}.png`) });
             const geometry = await inspectHealthExplorer(page);
             for (const category of ['mood','face','focus','sleep','exercise','diet','energy']) {

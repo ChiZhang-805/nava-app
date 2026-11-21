@@ -50,8 +50,8 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
               host.querySelector('#native-library').onclick = async () => {
                 status.textContent = 'Opening photos';
                 try {
-                  const result = await window.Capacitor.nativePromise('Camera', 'getPhoto', {source:'PHOTOS',resultType:'uri',quality:90,width:1600,height:1600,correctOrientation:true,allowEditing:false,saveToGallery:false,presentationStyle:'fullscreen'});
-                  status.textContent = result.webPath ? 'Photo selected' : 'No photo';
+                  const result = await window.Capacitor.nativePromise('Camera', 'pickImages', {limit:4,quality:90,width:1600,height:1600,correctOrientation:true,presentationStyle:'fullscreen'});
+                  status.textContent = result.photos?.length ? 'Photo selected' : 'Photo cancelled';
                 } catch (error) { status.textContent = /cancel/i.test(error.message || '') ? 'Photo cancelled' : 'Photo error: ' + error.message; }
               };
               const file = host.querySelector('#boundary-file');

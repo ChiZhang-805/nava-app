@@ -1,6 +1,7 @@
 import { sumFoodItemNutrition } from "../services/dietPortion";
 import type { User } from "@supabase/supabase-js";
 import { Camera, Check, Copy, FileText, Image as ImageIcon, LoaderCircle, Mic, Pencil, PhoneCall, PhoneOff, Plus, SendHorizontal, Smile, Trash2, X } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import companionAvatar from "../assets/figma/home-option2/home-mascot-v5.png";
 import { Fragment, FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale } from "../i18n";
@@ -19,7 +20,7 @@ import { createStreamingAiSpeaker, isAiSpeechSupported, resolveAiSpeechStyle, ty
 import { todayISO } from "../services/date";
 import { analyzeDietPhoto } from "../services/media";
 import { analyzeChatImages } from "../services/chatImages";
-import { chatFoodImageIds } from "../../supabase/functions/_shared/chat-image-contract.ts";
+import { CHAT_IMAGE_MAX_COUNT, chatFoodImageIds } from "../../supabase/functions/_shared/chat-image-contract.ts";
 import { loadOnboardingStatus } from "../services/onboarding";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
@@ -29,7 +30,7 @@ import { applyPhotoNutritionCorrection, updateStructuredEntryField } from "../se
 import type { ChatMessage, DietExtractResult } from "../types";
 import { isDemoMode } from "../services/demo";
 import { deleteConversationArchive, loadConversationArchive, loadConversationArchives, saveConversationArchive, type ConversationArchive } from "../services/userCloudState";
-import { buildChatDocumentRequest, chatAttachmentAccept, readChatDocument, validateChatImage, type PendingChatDocument } from "../services/chatAttachments";
+import { buildChatDocumentRequest, chatAttachmentAccept, isChatImageFile, readChatDocument, validateChatImage, type PendingChatDocument } from "../services/chatAttachments";
 import {
   conversationArchiveId,
   conversationDayKey,
@@ -264,15 +265,18 @@ export default function AIScreen({
   const documentInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const photoObjectUrlsRef = useRef(new Set<string>());
-  const clearComposerPhotos = useCallback(() => {
-    setPendingPhotos(current => {
-      for (const photo of current) {
-        photoObjectUrlsRef.current.delete(photo.previewUrl);
-        URL.revokeObjectURL(photo.previewUrl);
-      }
-      return [];
-    });
+  const pendingPhotosRef = useRef<PendingPhoto[]>([]);
+  const updatePendingPhotos = useCallback((photos: PendingPhoto[]) => {
+    pendingPhotosRef.current = photos;
+    setPendingPhotos(photos);
   }, []);
+  const clearComposerPhotos = useCallback(() => {
+    for (const photo of pendingPhotosRef.current) {
+      photoObjectUrlsRef.current.delete(photo.previewUrl);
+      URL.revokeObjectURL(photo.previewUrl);
+    }
+    updatePendingPhotos([]);
+  }, [updatePendingPhotos]);
   const handledCommandRef = useRef(0);
   const streamAbortRef = useRef<AbortController | null>(null);
   const speechRef = useRef<StreamingAiSpeaker | null>(null);
@@ -465,7 +469,7 @@ export default function AIScreen({
     finishReveal();
     if (photos.length > 0) {
       setInput("");
-      setPendingPhotos([]);
+      updatePendingPhotos([]);
       await sendComposerPhotos(photos, typedMessage);
       return;
     }
@@ -475,7 +479,7 @@ export default function AIScreen({
       ? encodeChatSticker(sticker.id)
       : documentRequest?.message ?? typedMessage;
     const displayMessage = sticker ? encodeChatSticker(sticker.id) : document
-      ? [typedMessage, `📎 ${document.name}`].filter(Boolean).join("\n")
+      ? [`📎 ${document.name}`, typedMessage].filter(Boolean).join("\n")
       : undefined;
     if (!sticker) { setInput(""); setPendingDocument(null); }
     setStickersOpen(false);
@@ -579,37 +583,47 @@ export default function AIScreen({
     }
   }
 
-  function handleComposerPhoto(file: File | null) {
-    if (!file || sending || photoAnalyzing) return;
-    const fileIssue = validateChatImage(file);
-    if (fileIssue) {
+  function handleComposerPhotos(files: File[]) {
+    if (files.length === 0 || sending || photoAnalyzing) return;
+    if (pendingDocument) {
+      setMediaNotice(locale === "zh" ? "请先发送或移除待发送的文件，再添加照片。" : "Send or remove the pending document before adding photos.");
+      return;
+    }
+    const current = pendingPhotosRef.current;
+    const valid = files.filter((file) => !validateChatImage(file));
+    const staged = valid.slice(0, CHAT_IMAGE_MAX_COUNT - current.length).map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      photoObjectUrlsRef.current.add(previewUrl);
+      return { id: crypto.randomUUID(), file, previewUrl };
+    });
+    if (staged.length) {
+      attachmentReadRef.current.version++;
+      updatePendingPhotos([...current, ...staged]);
+      setError(null);
+    }
+    if (valid.length !== files.length) {
+      const fileIssue = files.map(validateChatImage).find(Boolean);
       setError(locale === "zh"
         ? (fileIssue === "too_large" ? "这张照片过大，请换一张较小的照片。" : "无法读取这张照片，请换用常见图片格式。")
         : (fileIssue === "too_large" ? "This photo is too large. Choose a smaller one." : "This photo could not be read. Choose a common image format."));
-      return;
     }
     setAttachmentMenuOpen(false);
-    attachmentReadRef.current.version++;
-    setPendingDocument(null);
-    if (pendingPhotos.length >= 4) {
+    if (valid.length > staged.length) {
       setMediaNotice(locale === "zh" ? "一次最多可以选 4 张图片哦。" : "You can choose up to 4 images at a time.");
-      return;
     }
-    const previewUrl = URL.createObjectURL(file);
-    photoObjectUrlsRef.current.add(previewUrl);
-    setPendingPhotos((current) => current.length >= 4 ? current : [...current, { id: crypto.randomUUID(), file, previewUrl }]);
-    setError(null);
+  }
+
+  function handleComposerPhoto(file: File | null) {
+    if (file) handleComposerPhotos([file]);
   }
 
   function removePendingPhoto(id: string) {
-    setPendingPhotos((current) => {
-      const target = current.find((photo) => photo.id === id);
-      if (target) {
-        photoObjectUrlsRef.current.delete(target.previewUrl);
-        URL.revokeObjectURL(target.previewUrl);
-      }
-      return current.filter((photo) => photo.id !== id);
-    });
+    const current = pendingPhotosRef.current;
+    const target = current.find((photo) => photo.id === id);
+    if (!target) return;
+    photoObjectUrlsRef.current.delete(target.previewUrl);
+    URL.revokeObjectURL(target.previewUrl);
+    updatePendingPhotos(current.filter((photo) => photo.id !== id));
   }
 
   async function sendComposerPhotos(photos: PendingPhoto[], typedMessage: string) {
@@ -671,7 +685,7 @@ export default function AIScreen({
       const response = await sendAiMessage({
         userId: user.id,
         message: modelMessage,
-        displayMessage: [typedMessage, photoLabel].filter(Boolean).join("\n"),
+        displayMessage: [photoLabel, typedMessage].filter(Boolean).join("\n"),
         imageAnalysis,
         history: conversation.history,
         archiveId: conversation.archiveId,
@@ -709,7 +723,7 @@ export default function AIScreen({
       if (photoRequestCurrent() && !(photoError instanceof DOMException && photoError.name === "AbortError")) setError(photoError instanceof Error ? photoError.message : String(photoError));
       if (!userCommitted && photoRequestCurrent()) {
         setInput(typedMessage);
-        setPendingPhotos(photos);
+        updatePendingPhotos(photos);
         setPendingPhotoPreview(null);
       }
       setStreamingPreview(null);
@@ -765,6 +779,9 @@ export default function AIScreen({
         .catch(syncError => console.warn("Conversation history refresh deferred", syncError));
     };
     if (becameActive) syncCloudChat();
+    // System pickers can refocus WKWebView. A real native background trip
+    // already reopens the account through the session lock and initial load.
+    if (Capacitor.isNativePlatform()) return () => { disposed = true; };
     window.addEventListener("focus", syncCloudChat);
     document.addEventListener("visibilitychange", syncCloudChat);
     return () => { disposed = true; window.removeEventListener("focus", syncCloudChat); document.removeEventListener("visibilitychange", syncCloudChat); };
@@ -1252,6 +1269,10 @@ export default function AIScreen({
 
   const openComposerPhotoLibrary = () => {
     setAttachmentMenuOpen(false);
+    if (pendingPhotosRef.current.length >= CHAT_IMAGE_MAX_COUNT) {
+      setMediaNotice(locale === "zh" ? "一次最多可以选 4 张图片哦。" : "You can choose up to 4 images at a time.");
+      return;
+    }
     photoInputRef.current?.click();
   };
 
@@ -1262,13 +1283,16 @@ export default function AIScreen({
 
   const handleComposerDocument = async (file: File | null) => {
     if (!file || sending || photoAnalyzing) return;
+    if (pendingPhotosRef.current.length) {
+      setMediaNotice(locale === "zh" ? "请先发送或移除待发送的照片，再选择文件。" : "Send or remove the pending photos before choosing a document.");
+      return;
+    }
     const request = ++attachmentReadRef.current.version;
     setAttachmentMenuOpen(false);
     setError(null);
     try {
       const document = await readChatDocument(file);
       if (request !== attachmentReadRef.current.version) return;
-      clearComposerPhotos();
       setPendingDocument(document);
       setPendingPhotoPreview(null);
     } catch (documentError) {
@@ -1453,6 +1477,9 @@ export default function AIScreen({
               {parts.slice(0, revealPending?.id === message.id ? revealPending.shown : parts.length).map((part, partIndex) => {
                 const sticker = part.type === "sticker" ? getChatSticker(part.id) : null;
                 const copied = copiedPart === `${message.id}:${partIndex}`;
+                const previews = isUser ? photoPreviews[message.id] : undefined;
+                const text = part.type === "text" ? part.text : "";
+                const caption = previews ? text.replace(/^\[\d+ (?:张图片|images?)\](?:\n|$)/, "") : text;
                 return <div key={`${message.id}:${partIndex}`} data-message-id={message.id} data-reply-part={partIndex} className={["chat-message-row", isUser ? "user" : "assistant", partIndex ? "is-continuation" : "", freshMessageIds.has(message.id) ? "chat-message-new" : ""].join(" ")}>
                 {!isUser && partIndex === 0 && (
                   <span className="chat-avatar assistant" aria-hidden="true">
@@ -1460,12 +1487,13 @@ export default function AIScreen({
                   </span>
                 )}
                 <article className={`chat-bubble ${isUser ? "user" : "assistant"}${sticker ? " chat-sticker-bubble" : ""}`}>
-                  {isUser && photoPreviews[message.id] && (
-                    <div className="chat-photo-grid" data-photo-count={photoPreviews[message.id].length}>
-                      {photoPreviews[message.id].map((url, index) => <img key={url} className="chat-photo-preview" src={url} alt={locale === "zh" ? `图片 ${index + 1}` : `Image ${index + 1}`} data-chat-photo="saved" />)}
+                  {previews && (
+                    <div className="chat-photo-grid" data-photo-count={previews.length}>
+                      {previews.map((url, index) => <img key={url} className="chat-photo-preview" src={url} alt={locale === "zh" ? `图片 ${index + 1}` : `Image ${index + 1}`} data-chat-photo="saved" />)}
                     </div>
                   )}
-                  {sticker ? <img className="chat-sticker-image" src={sticker.imageSrc} alt={chatStickerLabel(sticker, locale)} draggable={false} /> : <p>{part.type === "text" ? part.text : ""}</p>}
+                  {sticker && <img className="chat-sticker-image" src={sticker.imageSrc} alt={chatStickerLabel(sticker, locale)} draggable={false} />}
+                  {caption && !sticker && <p>{caption}</p>}
                   <footer className="chat-message-meta">
                     <time>{new Date(message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "zh-CN", { hour: "2-digit", minute: "2-digit" })}</time>
                     <button className="chat-copy-message" data-copied={copied ? "true" : undefined} type="button" onClick={() => void copyMessage(message, partIndex)} aria-label={copied ? (locale === "zh" ? "复制好啦" : "Copied!") : (locale === "zh" ? "复制这条消息" : "Copy message")}>{copied ? <Check size={15} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}</button>
@@ -1586,18 +1614,25 @@ export default function AIScreen({
             className="chat-attachment-input chat-photo-input"
             type="file"
             accept={chatAttachmentAccept.images}
-            onFile={handleComposerPhoto}
+            limit={CHAT_IMAGE_MAX_COUNT - pendingPhotos.length}
+            onFiles={handleComposerPhotos}
           />
           <input
             ref={documentInputRef}
             key={`document-${attachmentContext}`}
             className="chat-attachment-input chat-document-input"
             type="file"
-            accept={chatAttachmentAccept.documents}
+            accept={`${chatAttachmentAccept.documents},${chatAttachmentAccept.images}`}
+            multiple
             onChange={(event) => {
-              const file = event.currentTarget.files?.[0] ?? null;
+              const files = Array.from(event.currentTarget.files ?? []);
               event.currentTarget.value = "";
-              void handleComposerDocument(file);
+              const photos = files.filter(isChatImageFile);
+              if (photos.length) handleComposerPhotos(photos);
+              else if (files.length === 1) void handleComposerDocument(files[0]);
+              if (files.length > photos.length && files.length > 1) setMediaNotice(locale === "zh"
+                ? "文本文件请每次单独选择一个。"
+                : "Select one text document at a time.");
             }}
           />
           <PhotoInput locale={locale} onError={setError}

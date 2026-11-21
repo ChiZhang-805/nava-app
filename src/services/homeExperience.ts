@@ -101,55 +101,63 @@ function pickGuidanceVariant(variants: LocalizedGuidanceVariants, locale: "zh" |
   return choices[safeSeed % choices.length];
 }
 
+export function homeGuidanceBubbleLines(guidance: HomeGuidance, locale: "zh" | "en") {
+  if (guidance.reason === "rhythm_signal") {
+    return locale === "zh" ? ["节律有些变化，", "去报告看看吧。"] : ["Your rhythm shifted.", "See your report."];
+  }
+  const clauses = guidance.message.match(locale === "zh" ? /^(.+?，)(.+)$/u : /^(.+?[.!?])\s+(.+)$/u);
+  return clauses ? [clauses[1], clauses[2].trim()] : [guidance.message];
+}
+
 function completedFocusMessage(phase: HomeDayPhase, minutes: number, locale: "zh" | "en", variantSeed: number) {
   const minuteLabel = Math.round(minutes);
   const variants: Record<HomeDayPhase, LocalizedGuidanceVariants> = {
     dawn: {
       zh: [
-        `已专注 ${minuteLabel} 分钟，伸个懒腰吧！`,
-        `专注了 ${minuteLabel} 分钟，喝口水醒醒神。`,
-        `${minuteLabel} 分钟完成，看看窗外放松下。`,
+        `专注 ${minuteLabel} 分钟了，伸个懒腰吧！`,
+        `专注了 ${minuteLabel} 分钟，喝口水吧。`,
+        `${minuteLabel} 分钟完成，看看窗外吧。`,
       ],
       en: [
-        `${minuteLabel} focus minutes done. Take a gentle stretch.`,
-        `${minuteLabel} minutes focused. Have some water.`,
-        `${minuteLabel} minutes done. Rest your eyes by the window.`,
+        `${minuteLabel} min of focus. Take a stretch.`,
+        `Focused for ${minuteLabel} min. Have some water.`,
+        `${minuteLabel} min of focus. Look out the window.`,
       ],
     },
     day: {
       zh: [
-        `已专注 ${minuteLabel} 分钟，起来走一走吧！`,
-        `${minuteLabel} 分钟完成，休息片刻再出发。`,
-        `专注了 ${minuteLabel} 分钟，喝口水放松下。`,
+        `专注了 ${minuteLabel} 分钟，起来走走吧！`,
+        `${minuteLabel} 分钟完成，先休息一会儿。`,
+        `专注 ${minuteLabel} 分钟了，喝口水放松下。`,
       ],
       en: [
-        `${minuteLabel} focus minutes done. Stand up and walk a little.`,
-        `${minuteLabel} minutes complete. Pause before the next task.`,
-        `${minuteLabel} minutes focused. Take a water break.`,
+        `${minuteLabel} min of focus. Take a short walk.`,
+        `Focused for ${minuteLabel} min. Take a break.`,
+        `${minuteLabel} min of focus. Have some water.`,
       ],
     },
     evening: {
       zh: [
-        `已专注 ${minuteLabel} 分钟，活动一下肩颈。`,
-        `${minuteLabel} 分钟完成，给自己一点缓冲。`,
-        `专注了 ${minuteLabel} 分钟，起来走两分钟。`,
+        `专注了 ${minuteLabel} 分钟，活动一下肩颈。`,
+        `${minuteLabel} 分钟完成，歇一会儿吧。`,
+        `专注 ${minuteLabel} 分钟了，起来走两分钟。`,
       ],
       en: [
-        `${minuteLabel} focus minutes done. Loosen your shoulders.`,
-        `${minuteLabel} minutes complete. Give yourself a pause.`,
-        `${minuteLabel} minutes focused. Walk around for two minutes.`,
+        `${minuteLabel} min of focus. Relax your shoulders.`,
+        `Focused for ${minuteLabel} min. Pause for a moment.`,
+        `${minuteLabel} min of focus. Walk for two minutes.`,
       ],
     },
     night: {
       zh: [
-        `已专注 ${minuteLabel} 分钟，准备收尾休息。`,
+        `专注了 ${minuteLabel} 分钟，可以收尾啦。`,
         `${minuteLabel} 分钟完成，让眼睛歇一会儿。`,
         `专注了 ${minuteLabel} 分钟，放下屏幕缓缓。`,
       ],
       en: [
-        `${minuteLabel} focus minutes done. Wind down for the night.`,
-        `${minuteLabel} minutes complete. Rest your eyes and mind.`,
-        `${minuteLabel} minutes focused. Step away from the screen.`,
+        `${minuteLabel} min of focus. Time to wind down.`,
+        `Focused for ${minuteLabel} min. Rest your eyes.`,
+        `${minuteLabel} min of focus. Take a screen break.`,
       ],
     },
   };
@@ -159,20 +167,20 @@ function completedFocusMessage(phase: HomeDayPhase, minutes: number, locale: "zh
 function focusPromptMessage(phase: HomeDayPhase, locale: "zh" | "en", variantSeed: number) {
   const variants: Record<HomeDayPhase, LocalizedGuidanceVariants> = {
     dawn: {
-      zh: ["选一件小事，轻轻开启今天。", "从十分钟开始，先找到节奏。", "写下第一步，慢慢进入状态。"],
-      en: ["Choose one small thing to begin the day.", "Start with ten minutes and find your rhythm.", "Write down the first step and ease into it."],
+      zh: ["选一件小事，轻松开始今天。", "从十分钟开始，先找到节奏。", "写下第一步，慢慢进入状态。"],
+      en: ["Pick one small task. Ease into the day.", "Start with ten minutes. Find your rhythm.", "Write down step one. Begin at your pace."],
     },
     day: {
-      zh: ["先专注 25 分钟，完成最重要的事。", "挑一件要紧的事，安静做 25 分钟。", "关掉一点干扰，专注完成一个小目标。"],
-      en: ["Start with 25 minutes on the most important task.", "Pick one priority and give it 25 quiet minutes.", "Reduce one distraction and finish a small goal."],
+      zh: ["挑一件要紧的事，专注 25 分钟。", "给自己 25 分钟，先做最要紧的。", "先关掉干扰，专注一个小目标。"],
+      en: ["Pick one priority. Focus for 25 minutes.", "Set 25 minutes aside. Start with one task.", "Mute one distraction. Finish a small task."],
     },
     evening: {
-      zh: ["还想推进的话，专注 25 分钟就好。", "选个小目标，用 25 分钟收个尾。", "先做最重要的一步，再安心休息。"],
-      en: ["If you want to continue, keep it to 25 minutes.", "Choose a small goal and wrap it up in 25 minutes.", "Do the most important next step, then rest."],
+      zh: ["还有一点想做，留 25 分钟就好。", "选个小目标，用 25 分钟收尾。", "先做要紧的一步，再安心休息。"],
+      en: ["Still want to focus? Try 25 minutes.", "Set one small goal. Wrap up in 25 min.", "Take one last step. Then get some rest."],
     },
     night: {
-      zh: ["今天先到这里，给睡眠留点安静。", "慢慢放下屏幕，让大脑准备休息。", "把明天的事记下，今晚安心收尾。"],
-      en: ["Call it a day and leave some quiet for sleep.", "Ease away from the screen and prepare to rest.", "Note tomorrow's task, then wind down tonight."],
+      zh: ["今天先到这里，留一点安静。", "慢慢放下屏幕，准备休息吧。", "记下明天的事，今晚安心收尾。"],
+      en: ["Call it a day. Make room for rest.", "Step away from screens. Get ready for rest.", "Note tomorrow’s task. Then wind down."],
     },
   };
   return pickGuidanceVariant(variants[phase], locale, variantSeed);
@@ -181,20 +189,20 @@ function focusPromptMessage(phase: HomeDayPhase, locale: "zh" | "en", variantSee
 function steadyMessage(phase: HomeDayPhase, locale: "zh" | "en", variantSeed: number) {
   const variants: Record<HomeDayPhase, LocalizedGuidanceVariants> = {
     dawn: {
-      zh: ["早上好，先感受一下今天的状态。", "新的一天，先喝口水再出发。", "慢慢醒来，给今天定个小目标。"],
-      en: ["Good morning. Check in with how you feel.", "A new day—start with a little water.", "Wake gently and choose one small goal."],
+      zh: ["早上好，感受一下此刻吧。", "新的一天，先喝口水再出发。", "慢慢醒来，定个小目标吧。"],
+      en: ["Good morning. How are you feeling?", "A new day. Have some water.", "Wake up gently. Pick one small goal."],
     },
     day: {
-      zh: ["今天状态平稳，再补齐一项记录吧。", "给自己一分钟，看看现在感觉如何。", "节奏不错，记下此刻的状态吧。"],
-      en: ["Today's rhythm looks steady. Add one record.", "Take a minute to notice how you feel now.", "Your rhythm looks good. Save this moment."],
+      zh: ["今天状态平稳，再记下一笔吧。", "给自己一分钟，感受一下此刻。", "节奏不错，记下此刻的状态。"],
+      en: ["Your rhythm is steady. Add one entry.", "Take a minute. How do you feel now?", "Your rhythm looks good. Save this moment."],
     },
     evening: {
-      zh: ["回看今天，再决定休息还是轻量活动。", "傍晚啦，给今天的状态做个小结。", "忙了一天，留一点时间照顾自己。"],
-      en: ["Review today, then choose rest or light activity.", "It's evening. Take a moment to check in.", "After a busy day, leave some time for yourself."],
+      zh: ["回看今天，歇歇或走一走。", "傍晚啦，给今天做个小结。", "忙了一天，留点时间给自己。"],
+      en: ["Look back on today. Rest or take a walk.", "It’s evening. Take a moment to check in.", "It’s been a busy day. Take time for yourself."],
     },
     night: {
-      zh: ["慢慢放下屏幕，给睡眠留点安静。", "夜深了，让今天在安静里收尾。", "把节奏放慢一点，准备好好休息。"],
-      en: ["Ease away from screens and leave quiet for sleep.", "It's late. Let the day end quietly.", "Slow the pace and get ready for good rest."],
+      zh: ["慢慢放下屏幕，留一点安静。", "夜深了，安静地收个尾。", "把节奏放慢点，准备好好休息。"],
+      en: ["Ease away from screens. Make room for sleep.", "It’s late. Let the day end quietly.", "Slow the pace. Get ready to rest."],
     },
   };
   return pickGuidanceVariant(variants[phase], locale, variantSeed);
@@ -210,8 +218,8 @@ export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale:
   if (sleepMinutes != null && sleepMinutes < 360) {
     const slept = zh ? `${Math.floor(sleepMinutes / 60)} 小时 ${sleepMinutes % 60} 分` : `${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m`;
     const message = pickGuidanceVariant({
-      zh: [`昨晚睡了 ${slept}，今天先照顾恢复。`, `睡眠 ${slept}，今天把节奏放缓些。`, `昨晚休息 ${slept}，多给自己一点缓冲。`],
-      en: [`You slept ${slept}. Put recovery first today.`, `${slept} of sleep. Keep today's pace gentle.`, `You rested ${slept}. Leave yourself more breathing room.`],
+      zh: [`昨晚睡了 ${slept}，今天慢一点吧。`, `昨晚睡了 ${slept}，今天留点余力。`, `昨晚睡了 ${slept}，给自己一点缓冲。`],
+      en: [`You slept ${slept}. Put rest first today.`, `${slept} of sleep. Keep your pace gentle.`, `You slept ${slept}. Give yourself time.`],
     }, locale, variantSeed);
     return {
       phase,
@@ -231,12 +239,12 @@ export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale:
     const stepLabel = steps == null ? null : steps.toLocaleString();
     const message = steps == null
       ? pickGuidanceVariant({
-        zh: ["步数还没同步，适合时轻走十分钟。", "今天活动还没记录，起来舒展一下吧。", "动一动肩颈，再轻松走一小段。"],
-        en: ["Steps have not synced. Try a gentle ten-minute walk.", "Activity is not recorded yet. Stand up and stretch.", "Loosen your shoulders, then take a short walk."],
+        zh: ["步数还没同步，有空走十分钟。", "活动还没记录，起来舒展一下。", "动一动肩颈，再走一小段吧。"],
+        en: ["Steps haven’t synced. Try a ten-minute walk.", "No activity logged. Stand up and stretch.", "Relax your shoulders. Take a short walk."],
       }, locale, variantSeed)
       : pickGuidanceVariant({
-        zh: [`今天 ${stepLabel} 步，适合时轻走十分钟。`, `已经走了 ${stepLabel} 步，再舒展一下吧。`, `今天 ${stepLabel} 步，起来活动两分钟。`],
-        en: [`${stepLabel} steps today. Try a gentle ten-minute walk.`, `${stepLabel} steps so far. Take a brief stretch.`, `${stepLabel} steps today. Move around for two minutes.`],
+        zh: [`今天 ${stepLabel} 步，有空走十分钟。`, `走了 ${stepLabel} 步，再舒展一下吧。`, `今天 ${stepLabel} 步，起来走两分钟。`],
+        en: [`${stepLabel} steps today. Try a ten-minute walk.`, `${stepLabel} steps so far. Take a brief stretch.`, `${stepLabel} steps today. Move for two minutes.`],
       }, locale, variantSeed);
     return { phase, reason: "movement_low", eyebrow: zh ? "傍晚活动提示" : "Evening movement", message, motion: "lift", actions };
   }

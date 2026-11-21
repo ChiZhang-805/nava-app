@@ -40,7 +40,7 @@ import {
 import { loadGrowthTotalPoints, type TodoItem } from "../services/productivity";
 import { getTodaySnapshot, getTrends } from "../services/records";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
-import { buildHomeGuidance, homeDayPhase, isVerticalHomeSwipe } from "../services/homeExperience";
+import { buildHomeGuidance, homeDayPhase, homeGuidanceBubbleLines, isVerticalHomeSwipe } from "../services/homeExperience";
 import {
   HOME_WIDGET_SLOT_COUNT,
   buildHomeWidgetPresentation,
@@ -631,8 +631,11 @@ export default function OptionTwoHome({
       </section>
 
       {homeGuidance && guidanceEligible && !guidanceDismissed && (
-        <button className="option-two-guidance" type="button" aria-live="polite" data-guidance-reason={homeGuidance.reason} data-guidance-phase={homeGuidance.phase} onClick={() => homeGuidance.actions[0] && onOpenNotificationTarget(homeGuidance.actions[0].target)}>
-          <p>{homeGuidance.message}</p>
+        <button className="option-two-guidance" type="button" aria-live="polite" data-guidance-reason={homeGuidance.reason} data-guidance-phase={homeGuidance.phase} onClick={() => {
+          if (homeGuidance.reason === "rhythm_signal") onOpenRecord();
+          else if (homeGuidance.actions[0]) onOpenNotificationTarget(homeGuidance.actions[0].target);
+        }}>
+          <p>{homeGuidanceBubbleLines(homeGuidance, locale).map((line, index) => <span key={index}>{line}</span>)}</p>
         </button>
       )}
 
