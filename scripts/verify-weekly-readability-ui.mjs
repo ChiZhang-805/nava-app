@@ -1,17 +1,18 @@
 // Local, explicitly demo-only layout fixtures. No claim of live AI verification.
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, expect } from "@playwright/test";
+import { chromium, webkit, expect } from "@playwright/test";
 import { createServer } from "vite";
 import { applyProjectPublicEnv } from "./project-env.mjs";
 
 applyProjectPublicEnv(process.cwd());
-const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/weekly-readability";
+const engine = process.env.NAVA_LAYOUT_ENGINE === "webkit" ? "webkit" : "chromium";
+const output = "Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/weekly-readability" + (engine === "webkit" ? "-webkit" : "");
 await mkdir(output, { recursive: true });
 await writeFile(`${output}/report.json`, JSON.stringify({ passed: false }));
 const server = await createServer({ server: { host: "127.0.0.1", port: 5236, strictPort: true }, logLevel: "silent" });
 await server.listen();
-const browser = await chromium.launch({ headless: true });
+const browser = await (engine === "webkit" ? webkit : chromium).launch({ headless: true });
 const results = [];
 try {
   for (const [width, height] of [[320, 568], [360, 740], [375, 812], [390, 844], [430, 932]]) {
@@ -127,6 +128,6 @@ try {
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   }
-  await writeFile(`${output}/report.json`, JSON.stringify({ passed: true, results }, null, 2));
+  await writeFile(`${output}/report.json`, JSON.stringify({ passed: true, engine, results }, null, 2));
   console.log("Weekly readability: populated, empty, radar, English and share preview passed at five viewports.");
 } finally { await browser.close(); await server.close(); }

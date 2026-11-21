@@ -103,12 +103,14 @@
   align-items: start;
   align-self: start;
   gap: 8px;
+  width: max-content;
   max-width: 88%;
 }
 .friend-space-preview-message[data-own="true"] { flex-direction: row-reverse; align-self: end; }
 .friend-space-preview-avatar {
   display: grid;
   flex: 0 0 30px;
+  width: 30px;
   height: 30px;
   place-items: center;
   border-radius: 10px;
@@ -126,8 +128,9 @@
   padding: 9px 12px;
   border-radius: 4px 13px 13px;
   background: #f5f8fdf4;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
+.friend-space-preview-bubble > span { min-width: 0; }
 .friend-space-preview-message[data-own="true"] .friend-space-preview-bubble {
   border-radius: 13px 4px 13px 13px;
   background: #e1e7ff;

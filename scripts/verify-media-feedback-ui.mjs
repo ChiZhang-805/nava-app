@@ -51,8 +51,8 @@ try {
       await page.route("**/*.supabase.co/rest/v1/journal_entries**", (route) => route.fulfill({ json: [] }));
       await page.route("**/*.supabase.co/rest/v1/journal_preferences**", (route) => route.fulfill({ json: { settings: { "fluffy-first-guide-face": true } } }));
       let navigation = 0;
-      const open = async (route) => {
-        await page.goto(`http://127.0.0.1:5225/?demo=1&qa-nav=${navigation++}#${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+      const open = async (route, query = "") => {
+        await page.goto(`http://127.0.0.1:5225/?demo=1&qa-nav=${navigation++}${query}#${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
         if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
         if (await page.locator(".completion-celebration-layer").isVisible().catch(() => false)) {
           await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
@@ -135,13 +135,14 @@ try {
       await page.waitForTimeout(1800);
       assert.equal(await page.evaluate(() => window.__speechCalls), spoken);
       await expect(mic).toHaveAttribute("aria-pressed", "false");
-      await open("tab=record"); await page.locator('[data-health-category="all"]').click();
-      await page.getByRole("button", { name: "保存海报", exact: true }).click();
+      await page.clock.setFixedTime(new Date("2026-09-30T12:00:00+08:00"));
+      await open("tab=record", "&qa=weekly-ai");
+      await page.getByRole("button", { name: "分享节律海报", exact: true }).click();
       const weekly = page.getByRole("dialog", { name: "分享前确认" });
       await expect(weekly.locator("img")).toBeVisible();
       await expect(weekly.getByLabel("包含具体日期")).not.toBeChecked();
       await expect(weekly.getByLabel("包含洞察摘要")).not.toBeChecked();
-      await expect.poll(() => page.evaluate(() => window.__drawn.includes("演示数据 / Demo"))).toBe(true);
+      await expect.poll(() => page.evaluate(() => window.__drawn.includes("演示数据"))).toBe(true);
       await weekly.getByLabel("包含洞察摘要").check(); await expect(weekly.getByLabel("包含具体日期")).toBeChecked();
       await weekly.getByLabel("包含具体日期").uncheck(); await expect(weekly.getByLabel("包含洞察摘要")).not.toBeChecked();
       const confirm = weekly.getByRole("button", { name: "确认并分享 / 保存" }); await expect(confirm).toBeEnabled({ timeout: 30000 });
@@ -165,7 +166,7 @@ try {
         await page.evaluate(() => window.__releaseVoice()); await expect(page.locator(".chat-voice-button")).toHaveAttribute("aria-pressed", "false");
       }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); assert.deepEqual(errors, []);
-      results.push({ viewport, passed: true, camera: "browser-fake-device", speech: "recognition-fixture", realAi: false });
+      results.push({ viewport, passed: true, camera: "direct-file-picker", speech: "recognition-fixture", realAi: false });
       console.log(`PASS media/feedback/date/privacy UI ${viewport.width}`);
     } finally { await context.close(); }
   }

@@ -71,15 +71,18 @@ try { for(const [engine,type] of Object.entries({chromium,webkit})) {
   await page.getByRole('menuitem',{name:'上传文件',exact:true}).click();chooser=await pending;
   await chooser.setFiles({name:'notes.txt',mimeType:'text/plain',buffer:Buffer.from('My notes')});
   await expect(page.locator('.chat-pending-document')).toContainText('notes.txt');await expect(draft).toHaveValue('保留这段草稿');
+  await page.getByRole('button',{name:'移除文件',exact:true}).click();
   await page.getByRole('button',{name:'添加附件',exact:true}).click();pending=page.waitForEvent('filechooser');
   await page.getByRole('menuitem',{name:'上传照片',exact:true}).click();chooser=await pending;
   await chooser.setFiles({name:'photo.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
   await expect(page.locator('.chat-pending-photos')).toBeVisible();await expect(draft).toHaveValue('保留这段草稿');
   await expect(page.locator('.chat-pending-document')).toHaveCount(0);
+  await page.getByRole('button',{name:'移除照片 1',exact:true}).click();
   await page.getByRole('button',{name:'添加附件',exact:true}).click();pending=page.waitForEvent('filechooser');
   await page.getByRole('menuitem',{name:'上传文件',exact:true}).click();chooser=await pending;
   await chooser.setFiles({name:'replacement.txt',mimeType:'text/plain',buffer:Buffer.from('Another note')});
   await expect(page.locator('.chat-pending-document')).toContainText('replacement.txt');
+  await page.getByRole('button',{name:'移除文件',exact:true}).click();
   await expect(page.locator('.chat-pending-photos')).toHaveCount(0);
   await page.getByRole('button',{name:'添加附件',exact:true}).click();pending=page.waitForEvent('filechooser');
   await page.getByRole('menuitem',{name:'上传照片',exact:true}).click();chooser=await pending;
