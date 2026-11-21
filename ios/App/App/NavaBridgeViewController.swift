@@ -89,12 +89,6 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
             let proxy = NavaWeakScriptMessageHandler(delegate: self)
             authMessageProxy = proxy
             bridge?.webView?.configuration.userContentController.add(proxy, name: "navaAuthState")
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(lockNativeExperience),
-                name: UIApplication.didEnterBackgroundNotification,
-                object: nil
-            )
         }
     }
 
@@ -191,12 +185,6 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
                 self?.dismissNativeExperience()
             }
         }
-    }
-
-    @objc private func lockNativeExperience() {
-        guard NavaNativeFeatureFlag.isEnabled, !startsOnDietDashboard else { return }
-        dismissNativeExperience()
-        bridge?.webView?.evaluateJavaScript("window.dispatchEvent(new Event('nava:native-lock'))")
     }
 
     private func presentNativeExperience() {

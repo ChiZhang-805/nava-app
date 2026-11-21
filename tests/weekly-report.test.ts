@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { calculateWeeklyModuleScores } from "../src/services/weeklyModuleScores.ts";
-import { naturalWeekDateRange } from "../src/services/date.ts";
+import { completedWeekDateRange, naturalWeekDateRange } from "../src/services/date.ts";
+import { validCompactReportBullet } from "../src/services/reportSummaryContract.ts";
+import { summarizeWeeklySleepTiming } from "../supabase/functions/_shared/weekly-rhythm-evidence.ts";
 import type { TrendBundle } from "../src/types.ts";
 
 const recordsScreen = readFileSync(new URL("../src/features/RecordsScreen.tsx", import.meta.url), "utf8");
@@ -31,9 +33,36 @@ test("weekly report periods follow the local Monday-to-Sunday natural week", () 
 
 test("weekly insight UI loads the authenticated cloud AI report", () => {
   assert.match(recordsScreen, /loadHealthAiReport\(\{ scope: "weekly"/);
+  assert.equal(recordsScreen.match(/loadHealthAiReport\(\{ scope: "weekly"/g)?.length, 1);
   assert.doesNotMatch(recordsScreen, /buildWeeklyInsights/);
   assert.match(recordsScreen, /日节律均值/);
   assert.doesNotMatch(recordsScreen, /有记录日节律均值/);
+});
+
+test("the most recent weekly report advances on local Monday", () => {
+  assert.deepEqual(completedWeekDateRange("2026-11-22"), { startDate: "2026-11-09", endDate: "2026-11-15" });
+  assert.deepEqual(completedWeekDateRange("2026-11-23"), { startDate: "2026-11-16", endDate: "2026-11-22" });
+  assert.deepEqual(completedWeekDateRange("2027-01-04", 1), { startDate: "2026-12-21", endDate: "2026-12-27" });
+  assert.equal(validCompactReportBullet("下周尝试固定起床时刻", "zh", true), true);
+  assert.equal(validCompactReportBullet("近周节律较平稳", "zh", true), true);
+  assert.equal(validCompactReportBullet("下周尝试固定起床时刻", "zh"), false);
+});
+
+test("sleep timing uses adjacent nights and clock distance across midnight", () => {
+  const row = (record_date: string, sleep_start: string, sleep_end: string) => ({ record_date, sleep_start, sleep_end });
+  const consecutive = [
+    row("2026-11-17", "21:10", "03:10"),
+    row("2026-11-18", "20:45", "02:45"),
+    row("2026-11-19", "21:15", "03:15"),
+    row("2026-11-21", "09:00", "17:00"),
+    row("2026-11-22", "25:00", "08:00"),
+  ];
+  assert.deepEqual(summarizeWeeklySleepTiming(consecutive), {
+    nightsWithTiming: 4, adjacentNightPairs: 2, medianSleepMidpointShiftMinutes: 28, medianWakeTimeShiftMinutes: 28,
+  });
+  assert.deepEqual(summarizeWeeklySleepTiming(consecutive.slice(0, 2)), {
+    nightsWithTiming: 2, adjacentNightPairs: 1, medianSleepMidpointShiftMinutes: null, medianWakeTimeShiftMinutes: null,
+  });
 });
 
 test("one real weekly rhythm point replaces the no-data placeholder", () => {

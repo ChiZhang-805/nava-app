@@ -121,7 +121,7 @@ function completedFocusMessage(phase: HomeDayPhase, minutes: number, locale: "zh
       en: [
         `${minuteLabel} min of focus. Take a stretch.`,
         `Focused for ${minuteLabel} min. Have some water.`,
-        `${minuteLabel} min of focus. Look out the window.`,
+        `${minuteLabel} min of focus. Look outside.`,
       ],
     },
     day: {
@@ -143,9 +143,9 @@ function completedFocusMessage(phase: HomeDayPhase, minutes: number, locale: "zh
         `专注 ${minuteLabel} 分钟了，起来走两分钟。`,
       ],
       en: [
-        `${minuteLabel} min of focus. Relax your shoulders.`,
+        `${minuteLabel} min of focus. Roll your shoulders.`,
         `Focused for ${minuteLabel} min. Pause for a moment.`,
-        `${minuteLabel} min of focus. Walk for two minutes.`,
+        `${minuteLabel} min of focus. Walk for 2 min.`,
       ],
     },
     night: {
@@ -180,7 +180,7 @@ function focusPromptMessage(phase: HomeDayPhase, locale: "zh" | "en", variantSee
     },
     night: {
       zh: ["今天先到这里，留一点安静。", "慢慢放下屏幕，准备休息吧。", "记下明天的事，今晚安心收尾。"],
-      en: ["Call it a day. Make room for rest.", "Step away from screens. Get ready for rest.", "Note tomorrow’s task. Then wind down."],
+      en: ["Call it a day. Make room for rest.", "Take a screen break. Get ready for rest.", "Note tomorrow’s task. Then wind down."],
     },
   };
   return pickGuidanceVariant(variants[phase], locale, variantSeed);
@@ -198,11 +198,11 @@ function steadyMessage(phase: HomeDayPhase, locale: "zh" | "en", variantSeed: nu
     },
     evening: {
       zh: ["回看今天，歇歇或走一走。", "傍晚啦，给今天做个小结。", "忙了一天，留点时间给自己。"],
-      en: ["Look back on today. Rest or take a walk.", "It’s evening. Take a moment to check in.", "It’s been a busy day. Take time for yourself."],
+      en: ["Look back on today. Rest or take a walk.", "It’s evening. Check in with yourself.", "It’s been a busy day. Take a little time."],
     },
     night: {
       zh: ["慢慢放下屏幕，留一点安静。", "夜深了，安静地收个尾。", "把节奏放慢点，准备好好休息。"],
-      en: ["Ease away from screens. Make room for sleep.", "It’s late. Let the day end quietly.", "Slow the pace. Get ready to rest."],
+      en: ["Take a screen break. Make room for sleep.", "It’s late. End the day quietly.", "Slow the pace. Get ready to rest."],
     },
   };
   return pickGuidanceVariant(variants[phase], locale, variantSeed);
@@ -240,11 +240,11 @@ export function buildHomeGuidance(snapshot: TodaySnapshot, hour: number, locale:
     const message = steps == null
       ? pickGuidanceVariant({
         zh: ["步数还没同步，有空走十分钟。", "活动还没记录，起来舒展一下。", "动一动肩颈，再走一小段吧。"],
-        en: ["Steps haven’t synced. Try a ten-minute walk.", "No activity logged. Stand up and stretch.", "Relax your shoulders. Take a short walk."],
+        en: ["Steps haven’t synced. Walk for 10 min.", "No activity logged. Stand up and stretch.", "Roll your shoulders. Take a short walk."],
       }, locale, variantSeed)
       : pickGuidanceVariant({
         zh: [`今天 ${stepLabel} 步，有空走十分钟。`, `走了 ${stepLabel} 步，再舒展一下吧。`, `今天 ${stepLabel} 步，起来走两分钟。`],
-        en: [`${stepLabel} steps today. Try a ten-minute walk.`, `${stepLabel} steps so far. Take a brief stretch.`, `${stepLabel} steps today. Move for two minutes.`],
+        en: [`${stepLabel} steps today. Walk for 10 min.`, `${stepLabel} steps so far. Take a brief stretch.`, `${stepLabel} steps today. Move for 2 min.`],
       }, locale, variantSeed);
     return { phase, reason: "movement_low", eyebrow: zh ? "傍晚活动提示" : "Evening movement", message, motion: "lift", actions };
   }

@@ -77,7 +77,6 @@ try {
       const journal = page.frameLocator(".journal-experience iframe");
       const camera = journal.locator("#sheet-layer");
       await journal.locator("#photo-preview").focus(); await journal.locator("#photo-preview").press("Enter");
-      await journal.getByRole('button', {name:'拍一张照片',exact:true}).click();
       await expect(camera).toBeVisible();
       await expect(camera).toContainText("选择照片");
       await journal.locator("body").evaluate(() => { window.__cameraTracks = [...document.querySelector(".camera-video").srcObject.getTracks()]; });
@@ -85,7 +84,6 @@ try {
       assert.equal(await journal.locator("body").evaluate(() => window.__cameraTracks.every(track => track.readyState === "ended")), true);
       await journal.locator("#sheet-close").focus(); await journal.locator("#sheet-close").press("Enter"); await expect(camera).toBeHidden();
       await journal.locator("#photo-preview").focus(); await journal.locator("#photo-preview").press("Enter"); await expect(camera).toBeVisible();
-      await journal.getByRole('button', {name:'拍一张照片',exact:true}).click();
       await expect.poll(() => camera.locator(".camera-video").evaluate((video) => video.readyState), { timeout: 30000 }).toBeGreaterThanOrEqual(2);
       const capture = journal.getByRole("button", { name: "拍下这一张", exact: true }); await capture.focus(); await capture.press("Enter"); await expect(camera).toBeHidden();
       await expect(journal.locator("#photo-preview img")).toBeVisible();
@@ -99,7 +97,6 @@ try {
         navigator.mediaDevices.getUserMedia = async (...args) => { const stream = await original(...args); window.__lateTracks = stream.getTracks(); await new Promise((resolve) => { window.__releaseCamera = resolve; }); return stream; };
       });
       await pendingJournal.locator("#photo-preview").focus(); await pendingJournal.locator("#photo-preview").press("Enter");
-      await pendingJournal.getByRole('button', {name:'拍一张照片',exact:true}).click();
       await expect.poll(() => pendingJournal.locator("body").evaluate(() => Boolean(window.__releaseCamera))).toBe(true);
       await pendingJournal.locator("#sheet-close").focus(); await pendingJournal.locator("#sheet-close").press("Enter"); await pendingJournal.locator("body").evaluate(() => window.__releaseCamera());
       await expect.poll(() => pendingJournal.locator("body").evaluate(() => window.__lateTracks.every(track => track.readyState === "ended"))).toBe(true);

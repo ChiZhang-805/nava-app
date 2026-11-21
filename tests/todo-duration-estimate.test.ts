@@ -1,6 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fallbackTodoDurationSeconds, parseExplicitTodoDuration, parseTodoDurationEstimate } from "../src/services/todoDurationContract.ts";
+import { durationActivityReference, fallbackTodoDurationSeconds, matchedFocusDuration, parseExplicitTodoDuration, parseTodoDurationEstimate } from "../src/services/todoDurationContract.ts";
+
+test("duration evidence keeps daily survey totals and measured personal sessions distinct", () => {
+  assert.deepEqual(durationActivityReference("准备做饭"), { source: "US BLS ATUS 2025", activity: "food preparation and cleanup", participantDayMeanMinutes: 65 });
+  assert.equal(durationActivityReference("先买菜再做饭"), null);
+  const row = (task: string, minutes: number, provenance = "timer") => ({
+    fields: { task }, focus: { elapsedMs: minutes * 60_000, provenance, startedAt: "recorded", endedAt: "recorded" },
+  });
+  assert.deepEqual(matchedFocusDuration("读论文", [row("读论文", 20), row("读论文。", 36), row("读论文", 100, "self-reported"), row("写论文", 45)]), {
+    samples: 2, medianSessionSeconds: 28 * 60,
+  });
+  assert.equal(matchedFocusDuration("写论文", [row("读论文", 20), row("写论文", 30)]), null);
+});
 
 test("accepts bounded duration tokens even when the model wraps them", () => {
   assert.equal(parseTodoDurationEstimate("DURATION_SECONDS=3723"), 3723);

@@ -64,7 +64,6 @@ try {
       for (const [shape, size] of [["landscape", [1280, 960]], ["portrait", [720, 1280]]]) {
         await frame.locator("body").evaluate((_, next) => { window.__frameSize = next; window.__cameraMode = "live"; }, size);
         await preview.click();
-        await frame.getByRole('button', {name:'拍一张照片',exact:true}).click();
         await expect(sheet).toBeVisible();
         await expect(frame.getByRole("button", { name: "拍下这一张", exact: true })).toBeVisible();
         await expect(frame.getByRole("button", { name: "选择照片", exact: true })).toBeVisible();
@@ -92,7 +91,6 @@ try {
 
       await frame.locator("body").evaluate(() => { window.__cameraMode = "pending"; });
       await preview.click();
-      await frame.getByRole('button', {name:'拍一张照片',exact:true}).click();
       await expect(sheet).toBeVisible();
       await frame.locator("#sheet-close").click();
       await frame.locator("body").evaluate(() => window.__resolvePermission());

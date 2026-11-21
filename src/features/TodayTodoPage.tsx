@@ -8,7 +8,7 @@ import DurationWheelPicker from "../components/DurationWheelPicker";
 import MoreMenu from "../components/MoreMenu";
 import { addTodo, deleteTodos, loadTodos, subscribeProductivity, syncTodos, toggleTodo, type TodoItem } from "../services/productivity";
 import { resolveTodoFocusPlan, suggestedFocusPlan } from "../services/focusPlanning.ts";
-import { estimateTodoDuration } from "../services/todoDurationEstimate";
+import { estimateTodoDuration, type TodoDurationEstimate } from "../services/todoDurationEstimate";
 import { startVoiceInput, type VoiceInputError, type VoiceInputSession } from "../services/voice";
 
 type DurationDraft = { hours: string; minutes: string; seconds: string };
@@ -37,6 +37,14 @@ function durationLabel(totalSeconds: number, locale: "zh" | "en") {
     ? [[value.hours, "小时"], [value.minutes, "分钟"], [value.seconds, "秒"]]
     : [[value.hours, "h"], [value.minutes, "m"], [value.seconds, "s"]];
   return parts.filter(([amount], index) => Number(amount) > 0 || index === 2).map(([amount, unit]) => `${amount}${locale === "zh" ? unit : ` ${unit}`}`).join(locale === "zh" ? " " : " ");
+}
+
+function estimateSourceLabel(estimate: TodoDurationEstimate, locale: "zh" | "en") {
+  if (estimate.provider === "explicit") return locale === "zh" ? "使用输入中的时长" : "Duration from your text";
+  if (estimate.provider === "fallback") return locale === "zh" ? "本机粗估" : "Rough device estimate";
+  if (estimate.usedReference === "history") return locale === "zh" ? "AI 预估 · 参考专注计时" : "AI estimate · timed sessions";
+  if (estimate.usedReference === "atus") return locale === "zh" ? "AI 预估 · 参考活动调查" : "AI estimate · time-use survey";
+  return locale === "zh" ? "AI 预估" : "AI estimate";
 }
 
 function dayLabel(deviceDate: string, locale: "zh" | "en") {
@@ -156,14 +164,9 @@ export default function TodayTodoPage({
     setError(null);
     setEstimateNote(null);
     try {
-      const estimate = await estimateTodoDuration(composedDraft, locale);
+      const estimate = await estimateTodoDuration(draft, locale, { userId: user.id, notes: details });
       setDuration(splitDuration(estimate.seconds));
-      const source = estimate.provider === "deepseek"
-        ? (locale === "zh" ? "DeepSeek 预估" : "DeepSeek estimate")
-        : estimate.provider === "explicit"
-          ? (locale === "zh" ? "已识别句中时长" : "Duration found in task")
-          : (locale === "zh" ? "智能兜底估算" : "Smart fallback estimate");
-      setEstimateNote(`${source} · ${durationLabel(estimate.seconds, locale)}`);
+      setEstimateNote(`${estimateSourceLabel(estimate, locale)} · ${durationLabel(estimate.seconds, locale)}`);
     } catch (estimateError) {
       setError(estimateError instanceof Error ? estimateError.message : String(estimateError));
     } finally {
@@ -187,14 +190,9 @@ export default function TodayTodoPage({
     setError(null);
     setEstimateNote(null);
     try {
-      const estimate = await estimateTodoDuration(task, locale);
+      const estimate = await estimateTodoDuration(task, locale, { userId: user.id });
       setDuration(splitDuration(estimate.seconds));
-      const source = estimate.provider === "deepseek"
-        ? (locale === "zh" ? "DeepSeek 预估" : "DeepSeek estimate")
-        : estimate.provider === "explicit"
-          ? (locale === "zh" ? "已识别句中时长" : "Duration found in task")
-          : (locale === "zh" ? "智能兜底估算" : "Smart fallback estimate");
-      setEstimateNote(`${source} · ${durationLabel(estimate.seconds, locale)}`);
+      setEstimateNote(`${estimateSourceLabel(estimate, locale)} · ${durationLabel(estimate.seconds, locale)}`);
     } catch (voiceError) {
       setError(voiceError instanceof Error ? voiceError.message : String(voiceError));
     } finally {

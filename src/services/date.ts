@@ -39,6 +39,10 @@ export function naturalWeekDateRange(reference: Date | string = new Date()) {
   return { startDate: todayISO(monday), endDate: todayISO(sunday) };
 }
 
+export function completedWeekDateRange(today: string, previousWeeks = 0) {
+  return naturalWeekDateRange(shiftDateISO(today, -7 * (1 + previousWeeks)));
+}
+
 export type DateLocale = "zh" | "en";
 
 export function shortDate(date: string, locale: DateLocale = "zh") {

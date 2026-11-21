@@ -31,11 +31,11 @@ import {
   getTodaySnapshot,
   getTrends,
 } from "../services/records";
-import { shiftDateISO, todayISO } from "../services/date";
+import { completedWeekDateRange, shiftDateISO, todayISO } from "../services/date";
 import { reminderMealFromView } from "../services/independentReminders";
 import { selectMealDraft } from "../services/mealDrafts";
 import { analyzeDietPhoto, analyzeFacePhoto, resolveDietPhotoUrl } from "../services/media";
-import { currentSevenDayPeriod, loadDnbWeeklyReport, refreshFdnbHealth, type DnbWeeklyReport } from "../services/dnb";
+import { loadDnbWeeklyReport, refreshFdnbHealth, type DnbWeeklyReport } from "../services/dnb";
 import WeeklySharePreview from "../components/WeeklySharePreview";
 import { trackAnalyticsEvent } from "../services/analytics";
 import type { GrowthActivityKind } from "../services/productivity";
@@ -257,6 +257,7 @@ export default function RecordsScreen({
   const [weeklyAiUnavailable, setWeeklyAiUnavailable] = useState(false);
   const [weeklyDetailSection, setWeeklyDetailSection] = useState<HealthReportSection | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const { startDate: weeklyStart, endDate: weeklyEnd } = completedWeekDateRange(deviceDate, weekOffset);
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
   const [weeklyChartMode, setWeeklyChartMode] = useState<"trend" | "radar">("trend");
   const [draftReady, setDraftReady] = useState(false);
@@ -702,12 +703,10 @@ export default function RecordsScreen({
   }, [activeModule, showEditor, recordDate, deviceDate]);
 
   useEffect(() => {
-    if (reportMode !== "weekly") return;
+    if (reportMode !== "weekly" || activeModule) return;
     let active = true;
     setDnbReport(null);
-    const reference = new Date(`${deviceDate}T12:00:00`);
-    reference.setDate(reference.getDate() - weekOffset * 7);
-    void loadDnbWeeklyReport(reference, locale)
+    void loadDnbWeeklyReport(new Date(`${weeklyEnd}T12:00:00`), locale)
       .then((report) => {
         if (active) setDnbReport(report);
       })
@@ -715,26 +714,22 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [deviceDate, locale, reportMode, user.id, weekOffset]);
+  }, [activeModule, locale, reportMode, user.id, weeklyEnd]);
 
   useEffect(() => {
-    if (reportMode !== "weekly") return;
-    const reference = new Date(`${deviceDate}T12:00:00`);
-    reference.setDate(reference.getDate() - weekOffset * 7);
-    const period = currentSevenDayPeriod(reference);
-    const availableEndDate = period.endDate > deviceDate ? deviceDate : period.endDate;
+    if (reportMode !== "weekly" || activeModule) return;
     let active = true;
     setWeeklyAiReport(null);
     setWeeklyDetailSection(null);
-    if (!forceWeeklyAiFixture && recordedDateCount(trendBundle, period.startDate, availableEndDate) < 5) {
+    if (!forceWeeklyAiFixture && recordedDateCount(trendBundle, weeklyStart, weeklyEnd) < 5) {
       setWeeklyAiLoading(false);
       setWeeklyAiUnavailable(false);
       return () => { active = false; };
     }
     setWeeklyAiLoading(true);
     setWeeklyAiUnavailable(false);
-    const sourceRevision = healthReportSourceRevision({ scope: "weekly", endDate: availableEndDate, trendBundle, profile });
-    void loadHealthAiReport({ scope: "weekly", endDate: availableEndDate, locale, sourceRevision })
+    const sourceRevision = healthReportSourceRevision({ scope: "weekly", endDate: weeklyEnd, trendBundle, profile });
+    void loadHealthAiReport({ scope: "weekly", endDate: weeklyEnd, locale, sourceRevision })
       .then((report) => {
         if (active) setWeeklyAiReport(report);
       })
@@ -748,7 +743,7 @@ export default function RecordsScreen({
     return () => {
       active = false;
     };
-  }, [deviceDate, forceWeeklyAiFixture, locale, profile, reportMode, trendBundle, user.id, weekOffset]);
+  }, [activeModule, forceWeeklyAiFixture, locale, profile, reportMode, trendBundle, user.id, weeklyStart, weeklyEnd]);
 
   const clearWeeklyLongPress = useCallback(() => {
     if (weeklyLongPressTimerRef.current !== null) {
@@ -763,11 +758,8 @@ export default function RecordsScreen({
 
   const shareWeeklyReport = useCallback(() => {
     if (!dnbReport || dnbReport.status !== "ready") return;
-    const reference = new Date(`${deviceDate}T12:00:00`);
-    reference.setDate(reference.getDate() - weekOffset * 7);
-    const period = currentSevenDayPeriod(reference);
-    setWeeklyShare({ report: structuredClone(dnbReport), ...period, endDate: period.endDate > deviceDate ? deviceDate : period.endDate, weekOffset });
-  }, [deviceDate, dnbReport, weekOffset]);
+    setWeeklyShare({ report: structuredClone(dnbReport), startDate: weeklyStart, endDate: weeklyEnd, weekOffset });
+  }, [dnbReport, weekOffset, weeklyStart, weeklyEnd]);
 
   const beginWeeklyLongPress = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dnbReport || dnbReport.status !== "ready") return;
@@ -812,9 +804,8 @@ export default function RecordsScreen({
       // durable; slower score/report refreshes can continue underneath it.
       onSaved(activeModule ?? undefined);
       try {
-        const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
         await Promise.allSettled([
-          refreshRhythmScore(recordDate).then(() => loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale })),
+          refreshRhythmScore(recordDate),
           refreshFdnbHealth(recordDate),
           activeModule && activeModule !== "diet"
             ? loadHealthAiReport({ scope: activeModule, endDate: recordDate, locale })
@@ -1040,8 +1031,6 @@ export default function RecordsScreen({
       }
       try {
         await loadDietAiReport({ date: recordDate, locale });
-        const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
-        await loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale });
       } catch (reportError) {
         // The meal is already durable. A transient model failure must not
         // discard it; opening the report retries the authenticated AI call.
@@ -1118,10 +1107,7 @@ export default function RecordsScreen({
       captureMode,
     });
     await Promise.allSettled([
-      refreshRhythmScore(recordDate).then(() => {
-        const savedPeriod = currentSevenDayPeriod(new Date(`${recordDate}T12:00:00`));
-        return loadHealthAiReport({ scope: "weekly", endDate: savedPeriod.endDate > recordDate ? recordDate : savedPeriod.endDate, locale });
-      }),
+      refreshRhythmScore(recordDate),
       refreshFdnbHealth(recordDate),
       loadHealthAiReport({ scope: "face", endDate: recordDate, locale }),
     ]);
@@ -1226,17 +1212,13 @@ export default function RecordsScreen({
   }
 
   if (!activeModule) {
-    const dnbReference = new Date(`${deviceDate}T12:00:00`);
-    dnbReference.setDate(dnbReference.getDate() - weekOffset * 7);
-    const dnbPeriod = currentSevenDayPeriod(dnbReference);
-    const availablePeriodEnd = dnbPeriod.endDate > deviceDate ? deviceDate : dnbPeriod.endDate;
-    const weeklyRecordedDays = forceWeeklyAiFixture ? 7 : recordedDateCount(trendBundle, dnbPeriod.startDate, availablePeriodEnd);
-    const inSelectedWeek = (date: string) => date >= dnbPeriod.startDate && date <= dnbPeriod.endDate;
+    const weeklyRecordedDays = forceWeeklyAiFixture ? 7 : recordedDateCount(trendBundle, weeklyStart, weeklyEnd);
+    const inSelectedWeek = (date: string) => date >= weeklyStart && date <= weeklyEnd;
     const rhythmsByDate = new Map((trendBundle?.rhythms ?? [])
       .filter((item) => inSelectedWeek(item.record_date))
       .map((item) => [item.record_date, item]));
     const rhythmPoints = Array.from({ length: 7 }, (_, index) => {
-      const date = shiftDateISO(dnbPeriod.startDate, index);
+      const date = shiftDateISO(weeklyStart, index);
       const item = rhythmsByDate.get(date);
       return {
         id: item?.id ?? `missing-rhythm-${date}`,
@@ -1250,8 +1232,8 @@ export default function RecordsScreen({
     const reportPoints = rhythmPoints;
     const recordedReportPointCount = reportPoints.filter((point) => !point.missing).length;
     const latestReportPoint = [...reportPoints].reverse().find((point) => !point.missing);
-    const previousPeriodStart = shiftDateISO(dnbPeriod.startDate, -7);
-    const previousPeriodEnd = shiftDateISO(dnbPeriod.endDate, -7);
+    const previousPeriodStart = shiftDateISO(weeklyStart, -7);
+    const previousPeriodEnd = shiftDateISO(weeklyEnd, -7);
     const periodComparison = compareRecordedPeriodAverages(
       reportPoints.filter((point) => !point.missing).map((point) => point.value),
       (trendBundle?.rhythms ?? [])
@@ -1272,10 +1254,12 @@ export default function RecordsScreen({
     const radarLabels: Record<WeeklyModuleKey, string> = locale === "zh"
       ? { sleep: "睡眠", exercise: "运动", nutrition: "饮食", focus: "专注", face: "面部", mood: "情绪" }
       : { sleep: "Sleep", exercise: "Activity", nutrition: "Diet", focus: "Focus", face: "Face", mood: "Mood" };
-    const weeklyRadarPoints = calculateWeeklyModuleScores(trendBundle, dnbPeriod.startDate, dnbPeriod.endDate)
+    const weeklyRadarPoints = calculateWeeklyModuleScores(trendBundle, weeklyStart, weeklyEnd)
       .map((point) => ({ ...point, label: radarLabels[point.key] }));
-    const weeklyInsights = weeklyAiReport?.bullets ?? [];
     const weeklySections = weeklyAiReport?.sections ?? [];
+    const weeklyTitle = locale === "zh"
+      ? (weekOffset === 0 ? "AI 上周节律洞察" : "AI 周节律洞察")
+      : (weekOffset === 0 ? "Last week’s AI insights" : "Weekly AI insights");
     const weeklyContent = (
           <div
             className="weekly-health-report"
@@ -1290,7 +1274,7 @@ export default function RecordsScreen({
           >
             <div className="weekly-period-controls">
               <button type="button" onClick={() => setWeekOffset((value) => value + 1)} aria-label={locale === "zh" ? "上一周" : "Previous week"}><ChevronLeft size={18} /></button>
-              <strong>{dnbPeriod.startDate} — {dnbPeriod.endDate}</strong>
+              <strong>{weeklyStart} — {weeklyEnd}</strong>
               <button type="button" disabled={weekOffset === 0} onClick={() => setWeekOffset((value) => Math.max(0, value - 1))} aria-label={locale === "zh" ? "下一周" : "Next week"}><ChevronRight size={18} /></button>
             </div>
             <section className="weekly-score-card">
@@ -1335,24 +1319,22 @@ export default function RecordsScreen({
               <header className="weekly-insight-header">
                 <span aria-hidden="true"><Bot size={18} /></span>
                 <strong>{weeklyAiReport?.provider === "demo"
-                  ? (locale === "zh" ? "演示本周节律洞察" : "Demo weekly rhythm insights")
-                  : (locale === "zh" ? "AI 本周节律洞察" : "AI weekly rhythm insights")}</strong>
+                  ? (locale === "zh" ? "演示周节律洞察" : "Demo weekly insights")
+                  : weeklyTitle}</strong>
                 <button type="button" className="weekly-share-button" aria-label={locale === "zh" ? "保存海报" : "Save poster"} disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={22} aria-hidden="true" /></button>
               </header>
               <div className="weekly-insight-body" aria-live="polite">
                 {weeklyAiLoading
                   ? <SkeletonLines count={4} />
                   : weeklyRecordedDays < 5
-                    ? <p>{locale === "zh" ? `本周已记录 ${weeklyRecordedDays} 天。积累 5 个记录日后，就能查看 AI 节律关联。` : `This week has ${weeklyRecordedDays} recorded days. AI rhythm insights become available after 5 recorded days.`}</p>
+                    ? <p>{locale === "zh" ? `这周有 ${weeklyRecordedDays} 个记录日。AI 周报需要至少 5 天记录。` : `${weeklyRecordedDays} days logged. Weekly insights require at least 5 recorded days.`}</p>
                     : <div className="weekly-ai-summary-list">
-                        {weeklyAiReport?.overview && <p className="weekly-ai-overview">{weeklyAiReport.overview}</p>}
-                        <ul>{weeklyInsights.map((insight, index) => {
-                          const section = weeklySections[index];
-                          return <li key={`${section?.id ?? index}-${insight}`}><button type="button" disabled={!section} onClick={() => section && setWeeklyDetailSection(section)}><span>{insight}</span><ChevronRight size={15} aria-hidden="true" /></button></li>;
-                        })}</ul>
+                        <ul>{weeklySections.map((section, index) => (
+                          <li key={section.id}><button type="button" onClick={() => setWeeklyDetailSection(section)}><span>{weeklyAiReport?.compactBullets?.[index] ?? section.title}</span><ChevronRight size={15} aria-hidden="true" /></button></li>
+                        ))}</ul>
                       </div>}
                 {weeklyAiUnavailable && <small>{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable."}</small>}
-                <MascotImage className="weekly-insight-mascot" animatedSrc={weeklyCuriousMascot} staticSrc={weeklyRunMascot} alt={locale === "zh" ? "NAVA 小猫好奇地查看本周节律" : "NAVA cat looking curiously at this week's rhythm"} loading="lazy" />
+                <MascotImage className="weekly-insight-mascot" animatedSrc={weeklyCuriousMascot} staticSrc={weeklyRunMascot} alt="" loading="lazy" />
               </div>
             </section>
             {weeklyDetailSection && <BottomSheet className="weekly-detail-sheet" label={weeklyDetailSection.title} closeLabel={locale === "zh" ? "关闭详细解读，也可以向下拖动" : "Close detailed interpretation, or drag down"} onClose={() => setWeeklyDetailSection(null)}>
@@ -1373,7 +1355,7 @@ export default function RecordsScreen({
                   <strong>{locale === "zh" ? "下一步建议" : "Next action"}</strong>
                   <p>{weeklyDetailSection.action}</p>
                 </section>
-                <footer><span>{locale === "zh" ? "结论置信度" : "Confidence"}</span><b data-confidence={weeklyDetailSection.confidence}>{locale === "zh" ? ({ high: "较高", medium: "中等", low: "有限" }[weeklyDetailSection.confidence]) : weeklyDetailSection.confidence}</b><small>{locale === "zh" ? "仅基于本周已授权记录，不构成医疗诊断，也不代表因果关系。" : "Based only on consent-authorized weekly records; not a diagnosis or a causal claim."}</small></footer>
+                <footer><span>{locale === "zh" ? "结论置信度" : "Confidence"}</span><b data-confidence={weeklyDetailSection.confidence}>{locale === "zh" ? ({ high: "较高", medium: "中等", low: "有限" }[weeklyDetailSection.confidence]) : weeklyDetailSection.confidence}</b><small>{locale === "zh" ? "依据所选周的已授权记录，供观察作息变化。" : "Based on consent-authorized records for the selected week."}</small></footer>
               </article>
             </BottomSheet>}
           </div>

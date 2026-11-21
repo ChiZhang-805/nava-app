@@ -12977,7 +12977,7 @@ body::before {
   letter-spacing: .006em;
 }
 .option-two-guidance > p > span { display: block; overflow-wrap: anywhere; }
-.option-two-guidance:lang(en) { width: clamp(182px, 48cqw, 208px); }
+.option-two-guidance:lang(en) { width: min(218px, 65cqw); padding-inline: 14px; }
 
 .option-two-life-stage {
   top: auto;
@@ -14881,8 +14881,7 @@ body::before {
 .advanced-profile-saved { font-size: 13px; }
 .advanced-profile-save { font-size: 15px; }
 
-/* Weekly report stays a one-screen composition. Give the insight more height,
-   enlarge the mascot, and narrow the copy column without creating scrolling. */
+/* Keep room for the chart while the four short summaries sit beside the cat. */
 .record-hub:has(.weekly-health-report) {
   height: 100%;
   min-height: 0;
@@ -14896,6 +14895,9 @@ body::before {
   padding-bottom: 6px;
   grid-template-rows: 44px 56px minmax(clamp(156px, 23dvh, 210px), 1fr) auto;
   gap: 8px;
+}
+.record-hub .weekly-health-report:has(.weekly-ai-summary-list li) {
+  grid-template-rows: 44px 56px minmax(clamp(146px, 19dvh, 182px), 1fr) auto;
 }
 .weekly-health-report .weekly-insight-card {
   padding: 7px 12px 12px;
@@ -14920,21 +14922,29 @@ body::before {
   background: transparent;
 }
 .weekly-health-report .weekly-insight-body {
-  grid-template-columns: minmax(0, 1fr) minmax(118px, 42%);
+  grid-template-columns: minmax(0, 1fr) clamp(72px, 23cqw, 106px);
   align-items: stretch;
   gap: 6px;
 }
 .weekly-health-report .weekly-ai-summary-list ul { gap: 3px; }
 .weekly-health-report .weekly-ai-summary-list li button {
-  min-height: 38px;
-  padding-block: 3px;
+  min-height: 28px;
+  grid-template-columns: 4px minmax(0, 1fr) 12px;
+  padding: 3px 6px;
   line-height: 1.35;
 }
+.weekly-health-report .weekly-ai-summary-list li button::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.weekly-health-report .weekly-ai-summary-list li button svg { width: 12px; }
 .weekly-health-report .weekly-ai-overview,
 .weekly-health-report .weekly-insight-body > p,
 .weekly-health-report .weekly-insight-body > small,
 .weekly-health-report .weekly-insight-body li { font-size: 14px; line-height: 1.45; }
-.weekly-health-report .weekly-ai-summary-list .weekly-ai-overview { display: none; }
 .weekly-health-report .weekly-ai-summary-list ul { grid-row: 1; }
 .weekly-health-report .weekly-insight-body:has(.weekly-ai-summary-list) .weekly-insight-mascot { grid-row: 1; }
 .weekly-health-report .weekly-insight-mascot {
@@ -14956,7 +14966,7 @@ body::before {
 }
 .weekly-health-report:lang(en) .weekly-ai-summary-list ul { gap: 1px; }
 .weekly-health-report:lang(en) .weekly-ai-summary-list li button {
-  min-height: 34px;
+  min-height: 28px;
   padding-block: 1px;
   line-height: 1.3;
 }
@@ -14965,6 +14975,9 @@ body::before {
   .record-hub .weekly-health-report {
     grid-template-rows: 40px 52px minmax(156px, 1fr) auto;
     gap: 7px;
+  }
+  .record-hub .weekly-health-report:has(.weekly-ai-summary-list li) {
+    grid-template-rows: 40px 52px minmax(146px, 1fr) auto;
   }
   .weekly-health-report .weekly-period-controls > button { min-height: 40px; }
   .weekly-health-report .weekly-score-card { min-height: 52px; }

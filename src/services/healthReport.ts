@@ -73,8 +73,8 @@ const demoCompactByScope: Record<HealthReportScope, { zh: CompactSummary; en: Co
     en: ["Face state steady", "Capture quality stable", "Face tracks sleep", "Keep lighting consistent"],
   },
   weekly: {
-    zh: ["近周节律较平稳", "睡眠活动同步变", "午后活动助稳定", "继续规律做记录"],
-    en: ["Rhythm stays steady", "Sleep tracks activity", "Movement supports rhythm", "Keep logging consistently"],
+    zh: ["整周节律整体较平稳", "睡眠中点波动较小", "活动与情绪同步变化", "下周尝试固定起床时刻"],
+    en: ["Rhythm held steady", "Stable sleep midpoint", "Mood tracks activity", "Keep waking consistent"],
   },
 };
 
@@ -236,7 +236,7 @@ export async function loadHealthAiReport(input: {
     if (response.error) throw await healthReportError(response.error, input.locale);
     const report = response.data;
     const compactBulletsValid = report?.compactBullets == null
-      || (report.compactBullets.length === 4 && report.compactBullets.every((bullet) => validCompactReportBullet(bullet, input.locale)));
+      || (report.compactBullets.length === 4 && report.compactBullets.every((bullet) => validCompactReportBullet(bullet, input.locale, input.scope === "weekly")));
     if (!report || report.provider !== "deepseek" || report.bullets.length !== 4 || !report.bullets.every((bullet) => validBullet(bullet, input.locale)) || !compactBulletsValid || !validStructuredReport(report, input.locale)) {
       throw new Error(input.locale === "zh" ? "AI 健康报告格式无效，请稍后重试。" : "The AI health report was invalid. Please retry.");
     }

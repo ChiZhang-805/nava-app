@@ -13,6 +13,7 @@ import type { AppSkin } from '../services/appSkin';
 import { claimJournalDailyCompletion } from '../services/journalDailyCompletion';
 import { uploadConfirmedFoodPhoto } from '../services/journalFoodPhoto';
 import { getNativeAppViewport } from '../services/mobileViewport';
+import { estimateTodoDuration } from '../services/todoDurationEstimate';
 
 const categoryMap:Record<RecordModule,JournalCategory>={mood:'mood',diet:'food',exercise:'sport',focus:'focus',sleep:'sleep',face:'face'};
 type Props={user:User;module:RecordModule;locale:'zh'|'en';skin:AppSkin;forceGuide?:boolean;guidePreview?:boolean;staged?:boolean;onInitialLoad?:()=>void;onSaved:()=>void;onExit:()=>void};
@@ -114,6 +115,8 @@ export default function JournalExperience({user,module,locale,skin,forceGuide=fa
               if(firstSaved)setFirstFeedback(firstSaved);
             }else if(method==='ai'){
               result=await journalAI({...payload,category:context.category||categoryMap[module],recordDate:context.recordDate||new Date().toLocaleDateString('en-CA')},controller.signal);
+            }else if(method==='estimate-duration'&&module==='focus'){
+              result=await estimateTodoDuration(String(payload?.task??''),locale,{userId:user.id,notes:String(payload?.notes??''),focusSession:true,signal:controller.signal});
             }else if(method==='photo'){
               result=await pickNativePhoto(payload.source==='camera'?'camera':'library',payload.facing==='user'?'user':'environment',controller.signal);
             }else if(method==='voice-start'){

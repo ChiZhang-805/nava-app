@@ -240,18 +240,25 @@ export async function sendAiMessage(input: {
   input.onUserMessage?.(userMessage);
 
   const extraction = parseChatSticker(input.message) || documentContext ? null : input.preExtracted ?? (input.imageAnalysis ? null : await (async () => {
-    const extract = await supabase.functions.invoke("ai-extract-data", {
-      headers: await authenticatedFunctionHeaders(),
-      body: {
-        message: input.message,
-        todos: [],
-        lang,
-        language: lang,
-        deviceDate: todayISO(),
-      },
-    });
-    return extract.error ? null : extract.data ?? null;
+    try {
+      const extract = await supabase.functions.invoke("ai-extract-data", {
+        headers: await authenticatedFunctionHeaders(),
+        body: {
+          message: input.message,
+          todos: [],
+          lang,
+          language: lang,
+          deviceDate: todayISO(),
+        },
+        signal: input.signal,
+      });
+      return extract.error ? null : extract.data ?? null;
+    } catch {
+      throwIfAborted(input.signal);
+      return null;
+    }
   })());
+  throwIfAborted(input.signal);
   const extractedData = extraction?.extractedData ?? null;
   const content = await requestAiReply({
     message: input.message,

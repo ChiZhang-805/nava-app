@@ -14,8 +14,9 @@ test("sign-in keeps the login visible until the new account can render its saved
   assert.doesNotMatch(bootstrap, /LoadingScreen|LoadingShell|auth-skeleton/);
 });
 
-test("the native session locks only when it goes into the background", () => {
-  assert.match(bootstrap, /CapacitorApp.addListener\("pause", lockSession\)/);
-  assert.match(bootstrap, /addEventListener\("nava:native-lock", lockSession\)/);
-  assert.doesNotMatch(bootstrap, /appStateChange/);
+test("iOS retains the mounted session across backgrounding and system pickers", () => {
+  const bridge = readFileSync(new URL("../ios/App/App/NavaBridgeViewController.swift", import.meta.url), "utf8");
+  assert.doesNotMatch(bootstrap, /appStateChange|addListener\("pause"|nava:native-lock/);
+  assert.doesNotMatch(bridge, /lockNativeExperience|nava:native-lock/);
+  assert.match(bootstrap, /!loading && sessionUnlocked \? user : null/);
 });

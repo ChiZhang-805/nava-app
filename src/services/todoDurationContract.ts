@@ -33,6 +33,48 @@ export function parseExplicitTodoDuration(value: string) {
   return matched ? boundedDuration(seconds) : null;
 }
 
+// 2025 American Time Use Survey, Table 1, all participants who did the
+// activity on the diary day. These are daily totals, not single-task times.
+const activityReferences = [
+  { match: /(?:做饭|备餐|烹饪|食材准备|\bcook(?:ing)?\b|meal prep)/iu, activity: "food preparation and cleanup", hours: 1.09 },
+  { match: /(?:做家务|清洁房间|打扫|洗衣|\bhousework\b|\bcleaning\b|\blaundry\b)/iu, activity: "housework", hours: 1.55 },
+  { match: /(?:购物|采购|买菜|\bshopping\b|\bgroceries\b)/iu, activity: "consumer goods purchases", hours: 0.87 },
+  { match: /(?:家庭财务|账单|\bbills\b|\bhousehold budget\b)/iu, activity: "household management", hours: 0.92 },
+  { match: /(?:写作业|课程作业|\bhomework\b)/iu, activity: "homework and research", hours: 3.11 },
+  { match: /(?:跑步|有氧|锻炼|健身|\bjog(?:ging)?\b|\bworkout\b|\bexercise\b)/iu, activity: "sports, exercise and recreation", hours: 1.47 },
+  { match: /(?:个人邮件|打电话|\bpersonal emails?\b|\bphone calls?\b)/iu, activity: "telephone calls, mail and email", hours: 1.01 },
+];
+
+export function durationActivityReference(task: string) {
+  const matches = activityReferences.filter(row => row.match.test(task));
+  if (matches.length !== 1) return null;
+  const { activity, hours } = matches[0];
+  return { source: "US BLS ATUS 2025", activity, participantDayMeanMinutes: Math.round(hours * 60) };
+}
+
+type FocusDurationRow = { fields: Record<string, unknown> | null; focus: Record<string, unknown> | null };
+
+export function matchedFocusDuration(task: string, rows: FocusDurationRow[]) {
+  const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  const title = normalize(task);
+  if (title.length < 3) return null;
+  const durations: number[] = [];
+  for (const row of rows) {
+    const priorTask = row.fields?.task;
+    const elapsedMs = row.focus?.elapsedMs;
+    if (typeof priorTask !== "string" || normalize(priorTask) !== title
+      || row.focus?.provenance === "self-reported" || !row.focus?.startedAt || !row.focus?.endedAt
+      || typeof elapsedMs !== "number" || !Number.isFinite(elapsedMs) || elapsedMs < 60_000 || elapsedMs > 480 * 60_000) continue;
+    durations.push(Math.round(elapsedMs / 1000));
+  }
+  if (durations.length < 2) return null;
+  durations.sort((a, b) => a - b);
+  return {
+    samples: durations.length,
+    medianSessionSeconds: Math.round((durations[Math.floor(durations.length / 2)] + durations[Math.floor((durations.length - 1) / 2)]) / 2),
+  };
+}
+
 /** Stable, conservative fallback used only when the authenticated model boundary is unavailable. */
 export function fallbackTodoDurationSeconds(value: string) {
   const text = value.trim().toLowerCase();

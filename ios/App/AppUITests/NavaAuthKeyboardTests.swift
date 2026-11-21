@@ -18,9 +18,13 @@ final class NavaAuthKeyboardTests: XCTestCase {
         // A fresh simulator has no saved permission choice.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let permission = springboard.alerts.firstMatch
-        // Photos/TCC starts lazily on clean cloud simulators. Wait for the
-        // actual system permission UI instead of skipping a late prompt.
-        if permission.waitForExistence(timeout: 60) {
+        let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "Close", "取消", "关闭"])).firstMatch
+        // Either a permission sheet or the picker can appear first.
+        let presentation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            cancel.exists || permission.exists
+        }, object: nil)
+        _ = XCTWaiter.wait(for: [presentation], timeout: 60)
+        if !cancel.exists && permission.exists {
             capture("system-photo-permission")
             let allowFullAccess = permission.buttons.matching(NSPredicate(
                 format: "label IN %@",
@@ -29,7 +33,6 @@ final class NavaAuthKeyboardTests: XCTestCase {
             XCTAssertTrue(allowFullAccess.exists, springboard.debugDescription)
             allowFullAccess.tap()
         }
-        let cancel = app.buttons["Cancel"].firstMatch
         if !cancel.waitForExistence(timeout: 30) {
             capture("system-photo-not-presented")
             XCTFail(app.debugDescription + "\n" + springboard.debugDescription)
@@ -48,6 +51,10 @@ final class NavaAuthKeyboardTests: XCTestCase {
         capture("system-file-browser")
         cancel.tap()
         XCTAssertTrue(web.buttons["Choose file"].waitForExistence(timeout: 10))
+        XCTAssertEqual(web.textFields["Preserved draft"].value as? String, "Keep this draft")
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(web.textFields["Preserved draft"].waitForExistence(timeout: 10))
         XCTAssertEqual(web.textFields["Preserved draft"].value as? String, "Keep this draft")
         capture("picker-return-draft")
     }

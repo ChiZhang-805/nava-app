@@ -930,12 +930,12 @@ __fluffyModules["app.js"] = (() => {
             preview.tabIndex = 0;
             preview.onclick = event => {
                 if (event.target.closest(".photo-remove")) return;
-                openPhotoOptions();
+                void openCamera();
             };
             preview.onkeydown = event => {
                 if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
-                openPhotoOptions();
+                void openCamera();
             };
             form.append(preview);
             if (state.category !== "food") {
@@ -1453,11 +1453,6 @@ __fluffyModules["app.js"] = (() => {
     async function estimateTime() {
         if (state.phase !== "idle")
             return;
-        if (!api.configured) {
-            openSettings();
-            bubble("deepseek-key", true);
-            return;
-        }
         const data = rawForm();
         if (!data.task.trim()) {
             bubble("先写下想做的事情。", true, { field: "task" });
@@ -1467,17 +1462,18 @@ __fluffyModules["app.js"] = (() => {
         setPhase("thinking");
         bubble("让我把时间估得实际一点。");
         try {
-            const result = await AI.estimate(api, data.task, data.notes || "", controller.signal);
+            const result = await window.NavaJournal.call('estimate-duration', {task: data.task, notes: data.notes || ""}, controller.signal);
             if (serial !== state.serial || state.category !== "focus" || controller.signal.aborted)
                 return;
             // 用户改了任务或目标，旧估时不再适用；不能只保护分钟框。
             if (version.task !== state.versions.task || version.notes !== state.versions.notes) { bubble("manual-kept"); return; }
-            fillForm({ durationMinutes: result.minutes }, version);
+            fillForm({ durationMinutes: Math.max(1, Math.min(480, Math.round(result.seconds / 60))) }, version);
             // 保留可修改分钟数，但不插入黄色说明，也不自动启动专注。
             const note = $("draft-note");
             note.hidden = true;
             note.textContent = "";
-            bubble("estimated");
+            if (result.provider === "fallback") bubble(Locale.t("已填入一个可调整的参考时长。", "A rough, editable estimate is ready."));
+            else bubble("estimated");
         }
         catch (e) {
             if (serial === state.serial && e.name !== "AbortError")
@@ -1534,18 +1530,6 @@ __fluffyModules["app.js"] = (() => {
      * 输出：Promise<void>。
      * 功能：请求相机预览，支持明确拍摄/取消；离开立即停止所有轨道。
      */
-    function openPhotoOptions() {
-        showSheet('添加照片', body => {
-            const row = el('div', 'sheet-buttons');
-            const camera = el('button', '', Locale.t('拍一张照片', 'Take a photo'));
-            const library = el('button', 'solid', Locale.t('选择照片', 'Choose a photo'));
-            camera.type = library.type = 'button';
-            camera.onclick = () => { closeSheet(false); void openCamera(); };
-            library.onclick = () => { void selectLibrary(); };
-            body.append($("photo-library"));
-            row.append(camera, library);body.append(row);
-        });
-    }
     async function pickNativeEntryPhoto(source) {
         const read = ++state.photoRead, category = state.category, date = state.recordDate, editingId = state.editingId;
         const current = () => read === state.photoRead && category === state.category && date === state.recordDate && editingId === state.editingId && animation.scene === 'entry';
@@ -1559,13 +1543,12 @@ __fluffyModules["app.js"] = (() => {
         } catch (error) { if (current() && error.name !== 'AbortError') toast(Locale.t('无法打开照片，请检查权限后重试。', 'Unable to open the photo. Check access and try again.')); }
     }
     async function openCamera() {
-        if(window.NavaJournal.initial.nativePhotos){
-            await pickNativeEntryPhoto('camera');return;
-        }
         const id = state.category;
         cancelWork(false);
         const serial = state.serial;
         let status;
+        let capture;
+        let useSystemCamera = false;
         showSheet("拍一张照片", b => {
             cameraVideo = el("video", "camera-video");
             cameraVideo.autoplay = true;
@@ -1575,9 +1558,12 @@ __fluffyModules["app.js"] = (() => {
             status = el("p", "camera-status", Locale.t("正在等待摄像头…"));
             b.append(status);
             const row = el("div", "sheet-buttons");
-            const capture = el("button", "solid", Locale.t("拍下这一张")), pick = el("button", "", Locale.t("选择照片"));
+            capture = el("button", "solid", Locale.t("拍下这一张"));
+            capture.disabled = true;
+            const pick = el("button", "", Locale.t("选择照片"));
             b.append($("photo-library"));
             capture.onclick = () => {
+                if (useSystemCamera) { void pickNativeEntryPhoto('camera'); return; }
                 try {
                     if (serial !== state.serial || id !== state.category || animation.scene !== "entry") return;
                     const image = photo.capture(cameraVideo);
@@ -1592,18 +1578,23 @@ __fluffyModules["app.js"] = (() => {
             pick.onclick = () => {
                 // Open while user activation and the modal's focus are intact.
                 // Closing the modal first can make WebKit cancel the picker.
-                $("photo-library").click();
+                void selectLibrary();
             };
             row.append(pick, capture);
             b.append(row);
         }, () => photo.stopCamera());
         try {
             const started = await photo.openCamera(cameraVideo, id === "face");
-            if (started && id === state.category)
+            if (started && id === state.category) {
                 status.textContent = "";
+                capture.disabled = false;
+            }
         }
         catch (e) {
-            if (!$("sheet-layer").hidden && id === state.category) {
+            if (!$("sheet-layer").hidden && serial === state.serial && id === state.category) {
+                useSystemCamera = window.NavaJournal.initial.nativePhotos === true;
+                capture.disabled = !useSystemCamera;
+                if (useSystemCamera) capture.textContent = Locale.t("拍一张照片");
                 status.textContent = Locale.language() === "en" ? "Camera unavailable. You can still choose a photo." : "摄像头暂不可用，仍可选择照片。";
             }
         }

@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Check,
   ListTodo,
+  MessagesSquare,
   ScanFace,
   ShoppingCart,
   ShieldCheck,
@@ -13,7 +14,7 @@ import {
   Utensils,
   UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import homeSceneBackground from "../assets/figma/home-option2/home-scene-v3.png";
 import homeMascotStill from "../assets/figma/home-option2/home-mascot-v5.png";
 import pullRefreshMascot from "../assets/mascot/animated/loading-pull-refresh.webp";
@@ -39,6 +40,7 @@ import {
 } from "../components/HomeReferenceIcons";
 import { loadGrowthTotalPoints, type TodoItem } from "../services/productivity";
 import { getTodaySnapshot, getTrends } from "../services/records";
+import { isDemoMode } from "../services/demo";
 import { buildHealthModuleProgress, healthModuleEntryView, healthModuleProgressLabel } from "../services/healthReportPresentation";
 import { buildHomeGuidance, homeDayPhase, homeGuidanceBubbleLines, isVerticalHomeSwipe } from "../services/homeExperience";
 import {
@@ -66,6 +68,8 @@ import HomeWidgetEditor from "./HomeWidgetEditor";
 import PointsShopExperience from "./PointsShopExperience";
 import AdminConsole from "./AdminConsole";
 import TodayTodoPage from "./TodayTodoPage";
+
+const FriendSpacePreview = import.meta.env.DEV ? lazy(() => import("./FriendSpacePreview")) : null;
 
 const healthEntries: Array<{
   id: RecordModule;
@@ -308,6 +312,10 @@ export default function OptionTwoHome({
 
   if (view === "profile-details") {
     return <AdvancedProfileScreen user={user} onBack={() => onBack(null)} onChanged={onChanged} />;
+  }
+
+  if (view === "friend-space" && FriendSpacePreview && isDemoMode()) {
+    return <Suspense fallback={null}><FriendSpacePreview locale={locale} onBack={() => onBack(null)} /></Suspense>;
   }
 
   if (view === "notifications") {
@@ -570,6 +578,7 @@ export default function OptionTwoHome({
         </button>
         <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("calendar"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "健康月历" : "Health calendar"} title={locale === "zh" ? "健康月历" : "Health calendar"}><CalendarDays size={23} /></button>
         <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("profile-details"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "详细资料设置" : "Detailed profile"} title={locale === "zh" ? "详细资料设置" : "Detailed profile"}><UsersRound size={24} /></button>
+        {FriendSpacePreview && isDemoMode() && <button className="option-two-side-shortcut" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("friend-space"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "咪有空间" : "Miyou Space"} title={locale === "zh" ? "咪有空间" : "Miyou Space"}><MessagesSquare size={22} /></button>}
         <button className="option-two-side-shortcut" data-home-shortcut="shop" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("points-shop"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "积分商城" : "Points store"} title={locale === "zh" ? "积分商城" : "Points store"}><ShoppingCart size={22} /></button>
         <button className="option-two-side-shortcut" data-home-shortcut="today-todos" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("today-todos"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "今日待办" : "Today's to-do"} title={locale === "zh" ? "今日待办" : "Today's to-do"}><ListTodo size={23} /></button>
         <button className="option-two-side-shortcut option-two-side-notifications" type="button" onClick={() => { setShortcutsOpen(false); onViewChange("notifications"); }} tabIndex={shortcutsOpen ? 0 : -1} aria-hidden={!shortcutsOpen} aria-label={locale === "zh" ? "消息通知" : "Notifications"} title={locale === "zh" ? "消息通知" : "Notifications"}>

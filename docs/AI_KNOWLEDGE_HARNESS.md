@@ -1,5 +1,65 @@
 # NAVA AI knowledge harness
 
+## App AI connection audit
+
+| User entry | Model boundary and persistence | Behavior at the boundary |
+| --- | --- | --- |
+| Wamier text, titles, voice replies, greetings and follow-up | `ai-chat-reply` uses DeepSeek; owned current turns use `ai_conversations` and archived turns use `ai_conversation_archives`. | Explicit utility purposes keep ordinary replies separate from titles and time estimates. Voice recognition is iOS Speech or browser recognition, and speech playback uses available system/browser voices. Optional extraction failure still permits a chat reply. |
+| Talk to the cat on the six record pages, extract draft fields, and recap | The authenticated parent calls `journal-assistant`. Text uses DeepSeek. Food and face based on selected images use the NAVA vision provider. Confirmed entries use `journal_entries`; model outputs use `journal_ai_runs`. | The iframe receives no provider key. Recognition is a draft. Cancelling, missing fields and transient failure preserve editable fields. |
+| To-do duration and focus entry “let the cat estimate” | Both call the fixed `duration-estimate` purpose on `ai-chat-reply`. Explicit durations are honored before model requests. | With personalization consent, up to 80 recent owned focus entries supply measured elapsed duration from matching task text. Only a median and sample count go to the provider. A focus session does not imply task completion. |
+| AI insights for mood, sleep, activity, focus, face and the closed week | `ai-health-report` reads the authorized profile and period records and caches its DeepSeek response in `ai_health_reports`. | A source fingerprint avoids reuse after relevant evidence changes. Missing coverage suppresses the weekly AI request. |
+| Meal photos, food-by-text and dietary reports | `diet-extract` gets a signed private photo for the vision provider. `ai-extract-data` uses common-serving references and optionally USDA FoodData Central for food text. `ai-diet-report` reads saved food records and persists its response in `nutrition_records.ai_feedback`. | Food identities and portions from pixels are estimated. Unknown nutrient values stay missing and confirmed portions can be edited. FoodData Central is a lookup for matching food composition, not a measurement of photo ingredients. |
+| Focus starting cue, difficulty and priority advice | The focus dashboard uses the authenticated focus tool at `ai-chat-reply` with the current task or selected open to-dos. | Suggestions remain separate from the persisted to-do order until confirmed. The tool does not execute or complete tasks. |
+| Face appearance and rendered meal previews | `face-analyze` signs an owned private photo before invoking its configured vision provider. `food-visualize` queues background rendering using the dedicated provider, persists the job and writes output to separate storage. | Appearance feedback stays within visible evidence. Rendered previews are presentation assets; the original photo remains recognition evidence. |
+| Generic photo attachment in chat | The `chat-images` purpose of `ai-chat-reply` obtains per-image observations before sending the authenticated text reply. | The transport is covered by simulated-provider tests. Production requires `NAVA_CHAT_VISION_KEY` or `DASHSCOPE_API_KEY_NAVA`. Raw chat images are not written into message rows. |
+| Home mascot suggestions, stable rhythm score, and trend plots | Code rules and recorded values, including the `rhythm-score` and `dnb-weekly-report` computations. | These deterministic features remain usable without a language model. |
+
+The estimator uses a small indexed set of 2025 US ATUS activity categories
+when personal timing is unavailable. The reference column is average daily
+minutes among participants who performed the activity. It is passed as weak
+context, never copied as a task estimate. The Activity microdata would support
+episode-level aggregates later. The binary download was unavailable to the
+local runner, so no episode medians were invented. O*NET task ratings provide
+task names, relevance, importance and frequency. Sources are
+[BLS ATUS 2025 Table 1](https://www.bls.gov/news.release/atus.htm),
+[ATUS activity microdata](https://www.bls.gov/tus/data/datafiles-2025.htm),
+[O*NET Task Ratings](https://www.onetcenter.org/dictionary/31.0/csv/task_ratings.html),
+and [Buehler et al. on planning estimates](https://bear.warrington.ufl.edu/brenner/mar7588/Papers/buehler-et-al-1994.pdf).
+
+The code audit does not verify model balances, provider response quality, or a
+new run under a production account. A missing vision key, disconnected
+network, rejected account consent or provider timeout can prevent analysis.
+Duration estimates stay editable and use a visibly labelled local fallback
+when the real estimator cannot complete. The original user input remains the
+source of truth for confirmed records.
+
+## Closed calendar-week insights
+
+The report opens on the latest completed Monday–Sunday interval in the device's
+local calendar. Opening an eligible week uses the existing authenticated report
+endpoint and its per-account, period and language cache. The selected week
+needs five record days. Daily edits no longer request a partial AI week. This is
+generation on first view after the week closes, without a scheduled background
+job. Users can browse earlier closed weeks.
+
+The card shows four one-line bullets for the overall pattern, sleep timing
+variation, supported same-day co-variation or a lack of paired data, and one
+small action. Each opens the underlying explanation and evidence. Chinese
+weekly summaries target 8–10 characters and accept existing seven-character
+reports. English uses 2–4 words. The backend source prepares the median
+absolute adjacent-night shift of sleep midpoint and wake time as descriptive
+statistics when at least two adjacent-night pairs are available. It handles
+midnight crossings and excludes gaps. This treats timing and duration as
+separate attributes. [Fischer et al., 2021](https://pubmed.ncbi.nlm.nih.gov/33864369/).
+
+The Sleep Regularity Index needs repeated sleep/wake states at matching times
+24 hours apart. Social jetlag needs the person's actual work and free days.
+The weekly prompt avoids those labels and biological phase estimates from the
+available record data. [Phillips et al., 2017](https://www.nature.com/articles/s41598-017-03171-4).
+[Wittmann et al., 2006](https://pubmed.ncbi.nlm.nih.gov/16687322/).
+The closed-week frontend uses the deployed AI endpoint. The updated wording
+and derived timing evidence in backend source require a separate deployment.
+
 ## Current deployment and conversation reset
 
 The explicitly authorized releases on 2026-11-20 are `ai-chat-reply` ACTIVE v50

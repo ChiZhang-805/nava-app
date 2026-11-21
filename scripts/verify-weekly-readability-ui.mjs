@@ -14,7 +14,7 @@ await server.listen();
 const browser = await chromium.launch({ headless: true });
 const results = [];
 try {
-  for (const [width, height] of [[360, 740], [375, 812], [390, 844], [430, 932]]) {
+  for (const [width, height] of [[320, 568], [360, 740], [375, 812], [390, 844], [430, 932]]) {
     const context = await browser.newContext({ locale: "zh-CN", viewport: { width, height }, reducedMotion: "reduce", timezoneId: "Asia/Shanghai" });
     try {
       await context.addInitScript(() => {
@@ -35,6 +35,8 @@ try {
         await page.goto(`http://127.0.0.1:5236/?demo=1${fixture ? "&qa=weekly-ai" : ""}#tab=record`, { waitUntil: "domcontentloaded" });
         if (await page.locator(".launch-sequence").isVisible()) await page.locator(".launch-sequence").click();
         await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'all');
+        await expect(page.locator(".weekly-period-controls strong")).toHaveText("2026-09-21 — 2026-09-27");
+        await expect(page.locator(".weekly-period-controls button").last()).toBeDisabled();
         await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
       };
       await open();
@@ -56,7 +58,11 @@ try {
             posterIconOnly: card.querySelector("header button")?.textContent.trim() === "",
             chartText: svgText.map((node) => ({ ...box(node), font: font(node) })),
             card: box(card), mascot: box(card.querySelector(".weekly-insight-mascot")),
-            text: text.map((node) => ({ ...box(node), font: font(node), clipped: node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1 })),
+            text: text.map((node) => {
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              return { ...box(node), font: font(node), bullet: Boolean(node.closest("li")), lines: range.getClientRects().length, clipped: node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1 };
+            }),
             stats: [...report.querySelectorAll(".weekly-score-card > div")].map((node) => ({ label: font(node.querySelector(":scope > span")), value: font(node.querySelector("strong")), labelBox: box(node.querySelector(":scope > span")), valueBox: box(node.querySelector("strong")), cell: box(node) })),
             date: font(report.querySelector(".weekly-period-controls strong")),
             heading: font(chart.querySelector("header strong")),
@@ -69,6 +75,7 @@ try {
         assert(data.date >= 13);
         for (const item of data.text) {
           assert(item.font >= 14 && !item.clipped, `${width}/${state}: text is too small or clipped`);
+          if (item.bullet) assert(item.lines <= (state === "english" && width === 320 ? 2 : 1), `${width}/${state}: short insight wraps`);
           assert(item.left >= data.card.left - 1 && item.right <= data.card.right + 1 && item.bottom <= data.card.bottom + 1, `${width}/${state}: text outside card ${JSON.stringify({ item, card: data.card, mascot: data.mascot })}`);
           const overlapsCat = item.right > data.mascot.left + 1 && item.left < data.mascot.right - 1 && item.bottom > data.mascot.top + 1 && item.top < data.mascot.bottom - 1;
           assert(!overlapsCat, `${width}/${state}: text overlaps mascot`);
@@ -110,5 +117,5 @@ try {
     } finally { await context.close(); }
   }
   await writeFile(`${output}/report.json`, JSON.stringify({ passed: true, results }, null, 2));
-  console.log("Weekly readability: populated, empty, radar, English and detail interactions passed at four viewports.");
+  console.log("Weekly readability: populated, empty, radar, English and detail interactions passed at five viewports.");
 } finally { await browser.close(); await server.close(); }

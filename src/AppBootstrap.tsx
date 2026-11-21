@@ -1,6 +1,5 @@
 import { Activity } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-import { App as CapacitorApp } from "@capacitor/app";
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { assertConfig } from "./config";
@@ -89,22 +88,13 @@ function BootstrapContent() {
 
   useEffect(() => {
     if (!isNativePlatform) return;
-    const lockSession = () => {
-      setPreparedUserId(null);
-      setSessionUnlocked(false);
-    };
     const unlockSocialSession = () => {
       setFreshAuthentication(true);
       setSessionUnlocked(true);
     };
-    window.addEventListener("nava:native-lock", lockSession);
     window.addEventListener("nava:social-auth-complete", unlockSocialSession);
-    // iOS can temporarily resign active while a system picker is open.
-    const pauseListener = CapacitorApp.addListener("pause", lockSession);
     return () => {
-      window.removeEventListener("nava:native-lock", lockSession);
       window.removeEventListener("nava:social-auth-complete", unlockSocialSession);
-      void pauseListener.then((listener) => listener.remove());
     };
   }, [isNativePlatform]);
 

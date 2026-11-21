@@ -19,7 +19,8 @@ test("every voice surface reaches its real AI boundary after speech recognition"
   assert.match(journalApp, /const draft = await AI\.extract/);
   assert.match(journalReview, /result = await this\.input\.stop\(\)[\s\S]*await this\.send\(result\.text/);
   assert.match(todoPage, /startVoiceInput\([\s\S]*applyVoiceTranscript/);
-  assert.match(todoPage, /applyVoiceTranscript[\s\S]*estimateTodoDuration\(task, locale\)/);
+  assert.match(todoPage, /applyVoiceTranscript[\s\S]*estimateTodoDuration\(task, locale, \{ userId: user.id \}\)/);
+  assert.match(journalApp, /NavaJournal.call\('estimate-duration'/);
   assert.equal((aiScreen.match(/await startVoiceInput\(/g) ?? []).length, 2, "AI composer and voice call must both start real speech input");
   assert.match(aiScreen, /async function submit[\s\S]*sendAiMessage/);
   assert.match(aiScreen, /submitVoiceCallTurn[\s\S]*sendAiMessage/);

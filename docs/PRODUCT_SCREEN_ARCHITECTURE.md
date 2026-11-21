@@ -321,3 +321,9 @@ A05 当前混合版实现为 `public/journal/onboarding.html` 的初见手记。
 - Apple Design Awards 中健康、记录和生活方式产品对“内容优先、微妙一致、非惩罚性反馈”的实践。
 
 用户提供的食物扫描、花瓣构成、横向食物卡和摄影主导页面只作为信息组织与视觉丰富度参考。NAVA 不复制其品牌、图像、图标或具体布局；应把参考中的优点转化为自己的蓝色节律系统、小猫陪伴、六模块数据合同和可解释 AI 流程。
+
+## 咪有空间（本地原型）
+
+- 首页右上角快捷菜单进入，标题右侧的加号打开邀请码。原型可切换「小禾」和「阿澄」两个演示账号，完整走邀请、接受、聊天及明确发送节律卡的流程。界面会标明演示账号与数据。底部中间的瓦咪儿仍进入现有 AI 聊天。
+- 正式版的账号发现使用短期、一次性邀请码或二维码。服务端校验邀请接收人和接受权限，只有接受后才建立会话。聊天表按会话成员授权。节律卡只传发送者预览确认的字段快照，不授予整份记录的访问权限。群组扩展时，对成员变化和撤回权限分别建模。提供删除、屏蔽和举报入口后再开放给真实用户。
+- 苹果的 NameDrop 是系统联系人交换。应用自己的近距离流程可以在双方主动进入添加好友页后，通过 Core Bluetooth 交换临时邀请码。摇晃只用于开启短时发现，收到邀请后仍需核对和接受。Nearby Interaction 可在设备已交换发现令牌后补充距离判断。需用两台支持的 iPhone 验证唤醒、发现、权限拒绝、设备过多和超时。 [Apple NameDrop](https://support.apple.com/guide/iphone/iph1b6c664b7/ios) [Core Bluetooth](https://developer.apple.com/documentation/corebluetooth/transferring-data-between-bluetooth-low-energy-devices) [Nearby Interaction](https://developer.apple.com/documentation/nearbyinteraction/initiating-and-maintaining-a-session)
