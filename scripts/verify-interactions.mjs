@@ -970,7 +970,8 @@ async function verifyHomeShortcuts(page, results) {
   await page.locator('.home-calendar-month-switcher button').first().click();
   await page.locator('.home-calendar-more').click();
   await page.locator('.home-calendar-today').click();
-  await page.locator('.home-calendar-day.is-today').click();
+  await page.locator('.home-calendar-more').click();
+  await page.getByRole('menuitem',{name:'当日综合报告'}).click();
   await expect(page.locator('[data-home-view="daily"]')).toBeVisible();
   await page.locator('.home-experience-back').click();
   await expect(page.locator('[data-home-view="calendar"]')).toBeVisible();

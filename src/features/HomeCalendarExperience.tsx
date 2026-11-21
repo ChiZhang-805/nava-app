@@ -5,17 +5,22 @@ import {
   CalendarCheck2,
   CalendarDays,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   ChevronRight,
   CircleGauge,
   Dumbbell,
   Frown,
-  Home,
   MoonStar,
   ScanFace,
   Target,
   Utensils,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import "./home-calendar.css";
+import { calendarActivities, calendarWeek } from "../services/calendarTimeline";
+import { shiftDateISO } from "../services/date";
+import { pendingTodoDates, subscribeProductivity } from "../services/productivity";
 import MoreMenu from "../components/MoreMenu";
 import AnimatedNumber from "../components/AnimatedNumber";
 import PageSkeleton from "../components/PageSkeleton";
@@ -89,8 +94,38 @@ function CalendarScreen({
   const [yearLoading, setYearLoading] = useState(true);
   const [yearError, setYearError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(deviceDate);
+  const [expanded, setExpanded] = useState(false);
+  const [todoDates, setTodoDates] = useState<Set<string>>(new Set());
+  const [showStats, setShowStats] = useState(false);
+  const statsRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(showStats)statsRef.current?.scrollIntoView({block:"start"});},[showStats]);
+  const week = useMemo(() => calendarWeek(selectedDate), [selectedDate]);
+  const activities = useMemo(() => calendarActivities(trends, selectedDate, locale), [trends, selectedDate, locale]);
+  const selectDate = (date: string) => { setSelectedDate(date); if (!date.startsWith(displayMonth)) setDisplayMonth(date.slice(0,7)); };
+  const changeMonth = (offset: number) => {
+    const month=shiftMonth(displayMonth,offset);
+    const day=Math.min(Number(selectedDate.slice(8)),Number(monthEndISO(month).slice(8)));
+    setDisplayMonth(month);setSelectedDate(`${month}-${String(day).padStart(2,'0')}`);
+  };
   const cells = useMemo(() => buildMonthCells(displayMonth), [displayMonth]);
   const monthWeekCount = cells.length / 7;
+  useEffect(() => {
+    let active = true;
+    let revision = 0;
+    const refresh = () => {
+      const request = ++revision;
+      setTodoDates(new Set());
+      pendingTodoDates(user.id, shiftDateISO(`${displayMonth}-01`, -6), shiftDateISO(monthEndISO(displayMonth), 6))
+        .then(dates => { if (active && request === revision) setTodoDates(new Set(dates)); })
+        .catch(() => { /* An unavailable task list must never create a marker. */ });
+    };
+    refresh();
+    const unsubscribe = subscribeProductivity(refresh);
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { active = false; unsubscribe(); document.removeEventListener("visibilitychange", onVisible); };
+  }, [displayMonth, user.id]);
   const coverage = useMemo(() => trends ? buildDailyCoverage(trends) : {}, [trends]);
   const rhythms = useMemo(() => trends ? rhythmScoresByDate(trends) : {}, [trends]);
   const weekdays = locale === "zh" ? ["一", "二", "三", "四", "五", "六", "日"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -115,7 +150,7 @@ function CalendarScreen({
     let active = true;
     setLoading(true);
     setError(null);
-    getTrends(user.id, monthEndISO(displayMonth))
+    getTrends(user.id, shiftDateISO(monthEndISO(displayMonth),6))
       .then((result) => {
         if (active) setTrends(result);
       })
@@ -159,55 +194,69 @@ function CalendarScreen({
   const atCurrentQuarter = displayYear > currentYear || (displayYear === currentYear && displayQuarter >= currentQuarter);
 
   return (
-    <section className="home-experience home-calendar-screen" data-home-view="calendar" data-month-week-count={monthWeekCount}>
+    <section className="home-experience home-calendar-screen" data-home-view="calendar" data-calendar-layout="week-agenda" data-expanded={expanded} data-month-week-count={monthWeekCount}>
       <header className="home-experience-header">
-        <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><Home size={22} /></button>
-        <div><h1>{locale === "zh" ? "我的月历" : "My calendar"}</h1></div>
+        <button className="home-experience-back" type="button" onClick={onBack} aria-label={locale === "zh" ? "返回首页" : "Back home"}><ChevronLeft size={22} /></button>
+        <div><h1>{locale === "zh" ? "我的日历" : "My calendar"}</h1></div>
         <MoreMenu open={menuOpen} onOpenChange={setMenuOpen} label={locale === "zh" ? "更多月历操作" : "More calendar actions"} buttonClassName="home-calendar-more">
             <button className="home-calendar-today" type="button" role="menuitem" onClick={() => {
-              setDisplayMonth(deviceDate.slice(0, 7));
+              setDisplayMonth(deviceDate.slice(0, 7));setSelectedDate(deviceDate);
               setMenuOpen(false);
             }}><CalendarDays size={18} aria-hidden="true" />{locale === "zh" ? "回到本月" : "Back to this month"}</button>
+          <button type="button" role="menuitem" onClick={()=>{setShowStats(v=>!v);setMenuOpen(false);}}><CalendarCheck2 size={18}/>{locale==='zh'?'月度与季度统计':'Month & quarter stats'}</button>
+          <button type="button" role="menuitem" onClick={()=>{setMenuOpen(false);onOpenDate(selectedDate);}}><Activity size={18}/>{locale==='zh'?'当日综合报告':'Daily health report'}</button>
         </MoreMenu>
       </header>
 
-      {loading ? <PageSkeleton variant="calendar" calendarWeekCount={cells.length / 7} /> : <><section className="home-calendar-overview">
-        <div><CalendarDays size={22} aria-hidden="true" /><span>{locale === "zh" ? "本月记录" : "Recorded"}</span><strong><AnimatedNumber value={monthDates.length} /><small>{locale === "zh" ? " 天" : " days"}</small></strong></div>
-        <div><CircleGauge size={22} aria-hidden="true" /><span>{locale === "zh" ? "平均节律" : "Avg. rhythm"}</span><strong>{averageRhythm == null ? "--" : <AnimatedNumber value={averageRhythm} />}<small>{averageRhythm == null ? "" : (locale === "zh" ? " 分" : " pts")}</small></strong></div>
-      </section>
-
       <section className="home-calendar-card">
         <header className="home-calendar-month-switcher">
-          <button type="button" onClick={() => setDisplayMonth(shiftMonth(displayMonth, -1))} aria-label={locale === "zh" ? "上个月" : "Previous month"}><ChevronLeft size={22} /></button>
+          <button type="button" onClick={() => changeMonth(-1)} aria-label={locale === "zh" ? "上个月" : "Previous month"}><ChevronLeft size={22} /></button>
           <h2>{monthTitle(displayMonth, locale)}</h2>
-          <button type="button" onClick={() => setDisplayMonth(shiftMonth(displayMonth, 1))} aria-label={locale === "zh" ? "下个月" : "Next month"}><ChevronRight size={22} /></button>
+          <button type="button" onClick={() => changeMonth(1)} aria-label={locale === "zh" ? "下个月" : "Next month"}><ChevronRight size={22} /></button>
         </header>
         <div className="home-calendar-weekdays">{weekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
-        <div className="home-calendar-grid">
-          {cells.map((cell, index) => {
+        <div className="home-calendar-grid" id="calendar-date-grid" style={{height:`${(expanded?monthWeekCount:1)*54}px`}}>
+          {(expanded ? cells : week.map(date=>({date,day:Number(date.slice(8))}))).map((cell, index) => {
             if (!cell.date || !cell.day) return <span className="home-calendar-spacer" key={`empty-${index}`} aria-hidden="true" />;
             const count = coverage[cell.date]?.length ?? 0;
             const score = rhythms[cell.date];
             return (
               <button
-                className={["home-calendar-day", cell.date === deviceDate ? "is-today" : "", count > 0 ? "is-recorded" : ""].filter(Boolean).join(" ")}
+                className={["home-calendar-day", cell.date === deviceDate ? "is-today" : "", cell.date === selectedDate ? "is-selected" : "", todoDates.has(cell.date) ? "has-todo" : ""].filter(Boolean).join(" ")}
                 key={cell.date}
                 type="button"
-                onClick={() => onOpenDate(cell.date as string)}
+                onClick={() => selectDate(cell.date as string)}
+                aria-pressed={cell.date === selectedDate}
                 data-date={cell.date}
                 data-record-count={count}
-                aria-label={`${dateTitle(cell.date, locale)} · ${count > 0 ? `${count}${locale === "zh" ? " 项记录" : " records"}` : (locale === "zh" ? "暂无记录" : "No records")}`}
+                aria-label={`${dateTitle(cell.date, locale)} · ${count > 0 ? `${count}${locale === "zh" ? " 项记录" : " records"}` : (locale === "zh" ? "暂无记录" : "No records")}${todoDates.has(cell.date) ? (locale === "zh" ? " · 有待办事项" : " · Pending tasks") : ""}`}
                 style={{ "--calendar-day-score": `${score ?? count / 6 * 100}%` } as CSSProperties}
               >
                 <b>{cell.day}</b>
                 <i aria-hidden="true" />
-                <small>{score != null ? score : count > 0 ? `${count}${locale === "zh" ? "项" : ""}` : ""}</small>
+
               </button>
             );
           })}
         </div>
       </section>
 
+      <section className="calendar-agenda" aria-label={locale==='zh'?'当天活动':'Daily activities'} data-selected-date={selectedDate}>
+        <div className="calendar-curve">
+          <svg viewBox="0 0 400 45" preserveAspectRatio="none" aria-hidden="true"><path d="M0 45 C0 22 16 6 42 6 H108 C145 6 153 37 200 37 C247 37 255 6 292 6 H358 C384 6 400 22 400 45 Z"/></svg>
+          <button type="button" className="calendar-expand" aria-label={locale==='zh'?(expanded?'收起整月':'展开整月'):(expanded?'Collapse month':'Expand month')} aria-expanded={expanded} aria-controls="calendar-date-grid" onClick={()=>setExpanded(v=>!v)}>{expanded?<ChevronUp size={20} aria-hidden="true"/>:<ChevronDown size={20} aria-hidden="true"/>}</button>
+        </div>
+        <header className="calendar-agenda-heading"><h2>{localDate(selectedDate).toLocaleDateString(locale==='zh'?'zh-CN':'en-US',{month:'long',day:'numeric',weekday:'short'})}</h2><button type="button" onClick={()=>selectDate(deviceDate)}>{locale==='zh'?'今天':'Today'}</button></header>
+        {loading ? <p role="status" className="calendar-agenda-empty">{locale==='zh'?'正在读取记录…':'Loading records…'}</p> : error ? <p role="alert" className="calendar-agenda-empty">{error}</p> : activities.length===0 ? <p className="calendar-agenda-empty">{locale==='zh'?'这一天还没有记录':'No records for this day'}</p> : <ol className="calendar-activities">{activities.map(activity=><li key={activity.id}>
+          <time>{activity.start??'—'}</time><i aria-hidden="true"/>
+          <div><h3>{activity.title}</h3><p>{activity.start ? `${activity.start}${activity.end?`–${activity.end}`:''}` : (locale==='zh'?'时间未记录':'Time not recorded')}{activity.minutes ? ` · ${activity.minutes} ${locale==='zh'?'分钟':'min'}`:''}</p>{activity.detail&&<p className="calendar-activity-note">{activity.detail}</p>}</div>
+        </li>)}</ol>}
+      </section>
+      {showStats && <div className="calendar-statistics" ref={statsRef}>
+<section className="home-calendar-overview">
+        <div><CalendarDays size={22} aria-hidden="true" /><span>{locale === "zh" ? "本月记录" : "Recorded"}</span><strong><AnimatedNumber value={monthDates.length} /><small>{locale === "zh" ? " 天" : " days"}</small></strong></div>
+        <div><CircleGauge size={22} aria-hidden="true" /><span>{locale === "zh" ? "平均节律" : "Avg. rhythm"}</span><strong>{averageRhythm == null ? "--" : <AnimatedNumber value={averageRhythm} />}<small>{averageRhythm == null ? "" : (locale === "zh" ? " 分" : " pts")}</small></strong></div>
+      </section>
       <section className="home-year-card" aria-label={locale === "zh" ? `${displayYear} 年第 ${displayQuarter} 季度打卡` : `${displayYear} Q${displayQuarter} check-ins`} data-year={displayYear} data-quarter={displayQuarter} data-week-count={quarterWeeks.length}>
         <header className="home-year-header">
           <div><strong><CalendarCheck2 size={18} aria-hidden="true" />{locale === "zh" ? "季度打卡" : "Quarter check-ins"}</strong></div>
@@ -237,8 +286,7 @@ function CalendarScreen({
               </div>
             </div>}
         <footer className="home-year-legend"><span>{locale === "zh" ? "少" : "Less"}</span>{[0, 1, 2, 3, 4].map((level) => <i data-level={level} key={level} />)}<span>{locale === "zh" ? "多" : "More"}</span></footer>
-      </section></>}
-      {error && <p className="home-experience-error" role="alert">{error}</p>}
+      </section></div>}
     </section>
   );
 }

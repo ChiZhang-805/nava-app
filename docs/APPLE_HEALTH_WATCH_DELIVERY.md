@@ -518,3 +518,12 @@ Apple 真机验收。
 - Capacitor iOS: https://capacitorjs.com/docs/ios
 - Capacitor workflow: https://capacitorjs.com/docs/basics/workflow
 - Supabase Edge Function authentication: https://supabase.com/docs/guides/functions/auth
+
+## 2026-11-22 连接重试调整
+
+Health 页每次用户点按都重新走 HealthKit 请求与读取，不把上次 request completed 当作读权限已授予。
+明确点按连接会启用 APP 内的健康同步同意，后台自动同步仍遵守该同意；零条读取不显示同步成功。
+权限无法由系统再次弹窗时可打开设置管理。Apple 的读权限隐私边界不变，空数据不被解释为明确拒绝。
+Watch 桥等待 WCSession 激活完成后检查 isPaired / isWatchAppInstalled；15 秒超时后可再次点按重试。
+已配对但不实时 reachable 时由 updateApplicationContext 排队，不要求用户手工建立第二条蓝牙连接。
+主动同步的原生发送失败会传回页面，不将仅服务器存储成功当成手表发送成功；排队也不代表手表已显示。

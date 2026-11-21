@@ -141,6 +141,7 @@ Invoke-Npm -Arguments @("run", "home-widgets:test")
 
 Write-Host ""
 Write-Host "27a. Quarterly calendar geometry"
+Invoke-Npm -Arguments @("run", "calendar:test")
 Invoke-Npm -Arguments @("run", "calendar:visual")
 
 Write-Host ""

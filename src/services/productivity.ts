@@ -93,6 +93,21 @@ export function loadTodos(userId: string): TodoItem[] {
   return readJson<TodoItem[]>(todoStorageKey(userId), []);
 }
 
+/** Calendar markers represent unfinished tasks, not health records or cached activity. */
+export async function pendingTodoDates(userId: string, start: string, end: string): Promise<string[]> {
+  if (isDemoMode()) return [...new Set(loadTodos(userId).filter(item => !item.completed && item.scheduledDate >= start && item.scheduledDate <= end).map(item => item.scheduledDate))];
+  const dates = new Set<string>();
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await supabase.from("tasks").select("id,scheduled_date")
+      .eq("user_id", userId).eq("category", "todo").eq("completed", false)
+      .gte("scheduled_date", start).lte("scheduled_date", end)
+      .order("id").range(offset, offset + 999);
+    if (error) throw error;
+    for (const row of data ?? []) if (row.scheduled_date) dates.add(row.scheduled_date);
+    if (!data || data.length < 1000) return [...dates];
+  }
+}
+
 export async function syncTodos(userId: string): Promise<TodoItem[]> {
   const cached = loadTodos(userId);
   if (isDemoMode()) return cached;

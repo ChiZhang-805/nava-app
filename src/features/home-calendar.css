@@ -1,0 +1,49 @@
+/* Calendar and agenda share one surface; dates are text, not nested cards. */
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] {
+  --agenda-paper: #fafbff;
+  padding: 4px 0 0;
+  height: 100%; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction:column;
+  color: var(--skin-ink, #253257); scrollbar-width: none;
+}
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-experience-header { margin:0 16px 12px; min-height:56px; background:transparent; box-shadow:none; border:0; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-experience-header h1 { color:inherit; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-card { flex:0 0 auto; padding:0 6px; border:0; border-radius:0; background:transparent; box-shadow:none; backdrop-filter:none; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-month-switcher { min-height:58px; grid-template-columns:44px 1fr 44px; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-month-switcher h2 { font-size:20px; color:inherit; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-month-switcher button { width:44px; height:44px; background:transparent; border:0; box-shadow:none; color:inherit; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-weekdays { margin:10px 0 6px; gap:0; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-weekdays span { font-size:13px; font-weight:500; color:inherit; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-grid { gap:0; grid-auto-rows:54px; overflow:hidden; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-day { position:relative; display:grid; place-items:center; grid-template-columns:1fr; padding:0 0 8px; min-height:54px; border:0; border-radius:0; background:transparent; box-shadow:none; color:inherit; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-day b { display:grid; place-items:center; justify-self:center; width:40px; height:40px; border-radius:50%; font-size:17px; font-weight:650; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-day.is-selected b { background:#f9ce64; color:#20273f; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-day i { position:absolute; grid-area:auto; bottom:2px; left:calc(50% - 2.5px); width:5px; height:5px; background:currentColor; box-shadow:none; opacity:0; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-day.has-todo i { opacity:1; }
+.phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-day:focus-visible { outline:2px solid var(--skin-accent,#655bc3); outline-offset:-3px; border-radius:12px; }
+.calendar-agenda { flex:1 0 auto; position:relative; margin-top:44px; min-height:280px; padding:12px 20px 26px; background:var(--agenda-paper); }
+.calendar-curve { position:absolute; top:-44px; inset-inline:0; height:45px; }
+.calendar-curve > svg { display:block; width:100%; height:45px; fill:var(--agenda-paper); }
+.calendar-expand { position:absolute; left:calc(50% - 22px); top:4px; display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; background:transparent; color:inherit; }
+.calendar-expand svg { display:block; flex:none; }
+.calendar-expand:focus-visible { outline:2px solid var(--skin-accent,#655bc3); border-radius:50%; }
+.calendar-agenda-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px; }
+.calendar-agenda-heading h2 { margin:0; font-size:18px; }
+.calendar-agenda-heading button { min-width:44px; min-height:44px; border:0; padding:0; background:transparent; font:inherit; font-weight:650; color:inherit; }
+.calendar-activities { list-style:none; padding:0; margin:0; }
+.calendar-activities li { display:grid; grid-template-columns:48px 14px minmax(0,1fr); column-gap:12px; position:relative; padding-top:4px; }
+.calendar-activities li::before { content:''; position:absolute; left:66px; top:13px; bottom:0; width:1px; background:#d8d7eb; }
+.calendar-activities li:last-child::before { bottom:18px; }
+.calendar-activities time { font-size:15px; font-weight:650; padding-top:1px; }
+.calendar-activities li>i { width:9px; height:9px; border-radius:50%; background:#a7a5e5; justify-self:center; margin-top:5px; z-index:1; }
+.calendar-activities li>div { padding-bottom:20px; margin-bottom:16px; border-bottom:1px solid #e4e4ee; }
+.calendar-activities li:last-child>div { border-bottom:0; margin-bottom:0; }
+.calendar-activities h3 { font-size:17px; line-height:1.35; margin:0 0 6px; overflow-wrap:anywhere; }
+.calendar-activities p { font-size:13px; line-height:1.6; margin:0; color:#536078; overflow-wrap:anywhere; }
+.calendar-activity-note { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.calendar-agenda-empty { padding:20px 0 32px; font-size:14px; line-height:1.6; color:#536078; }
+.calendar-statistics { flex:0 0 auto; padding:18px 16px; background:var(--agenda-paper); }
+.calendar-statistics .home-calendar-overview { margin-bottom:16px; }
+@media(min-width:375px) { .phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-card { padding-inline:16px; } }
+@media(prefers-reduced-motion:no-preference) { .calendar-agenda { animation:calendar-agenda-enter 180ms ease-out; } @keyframes calendar-agenda-enter { from {opacity:.7;transform:translateY(4px)} to {opacity:1;transform:none} } }
+
+@media(prefers-reduced-motion:no-preference) { .phone-frame[data-app-skin] .home-calendar-screen.home-experience[data-calendar-layout] .home-calendar-grid { transition:height 240ms ease; } }
