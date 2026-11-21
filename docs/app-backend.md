@@ -744,6 +744,9 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 
 ## 咪友空间后端合同（待部署）
 
+咪友空间沿用 NAVA 现有 Supabase Auth 用户与会话，没有独立注册或第二套账号。
+用户明确不另建生产测试账号；本地隔离身份可继续用于自动化，线上验证仅在已授权的现有账号范围内进行。
+
 新增、尚未应用的迁移：`202611220001_miyou_space.sql` 与 `202611220002_miyou_retention.sql`。
 前者创建 `miyou_people/links/messages/pets/care_catalog/care_events/reports` 七张表及 `nava_miyou(action,payload)` RPC。
 所有表启用 RLS 并撤销客户端直接访问；RPC 固定空 search_path、按 auth.uid() 验证成员，客户端没有 service-role。
