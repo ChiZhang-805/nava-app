@@ -1,12 +1,14 @@
 import Foundation
 import Capacitor
 import HealthKit
+import UIKit
 
 @objc(NavaHealthPlugin)
 public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "NavaHealthPlugin"
     public let jsName = "NavaHealth"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getAuthorizationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getTodaySummary", returnType: CAPPluginReturnPromise),
@@ -56,6 +58,13 @@ public class NavaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
         ].compactMap { $0 }.forEach { types.insert($0) }
         return types
+    }
+
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let url = URL(string: UIApplication.openSettingsURLString) else { call.resolve(["opened": false]); return }
+            UIApplication.shared.open(url, options: [:]) { opened in call.resolve(["opened": opened]) }
+        }
     }
 
     @objc func requestAuthorization(_ call: CAPPluginCall) {

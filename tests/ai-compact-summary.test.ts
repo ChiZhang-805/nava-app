@@ -133,7 +133,7 @@ test("detailed report prose and auxiliary AI routes remain wired without six unu
   assert.match(recordsScreen, /weeklyContent=\{weeklyContent\}/);
   assert.match(recordsScreen, /recordedDateCount\(trendBundle, weeklyStart, weeklyEnd\) < 5/);
   assert.match(recordsScreen, /scope: "weekly", endDate: weeklyEnd/);
-  assert.match(recordsScreen, /AI 上周节律洞察/);
+  assert.match(recordsScreen, /AI 周节律洞察/);
 
   assert.match(aiService, /functions\.invoke\("ai-extract-data"/);
   assert.match(aiService, /functions\.invoke<Response>\("ai-chat-reply"/);

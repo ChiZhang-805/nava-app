@@ -17,7 +17,7 @@
 .miyou-icon { display:inline-grid; flex:0 0 44px; width:44px; height:44px; place-items:center; padding:0; border:0; background:transparent; border-radius:0; }
 .miyou-chat-title { display:flex; flex:1; min-width:0; align-items:center; gap:10px; }
 .miyou-chat-title h1 { text-align:start; }
-.miyou-avatar { display:inline-grid; place-items:center; flex:0 0 40px; width:40px; height:40px; border-radius:50%; background:linear-gradient(145deg,#e1edf8,#d5d9f5); color:#33476a; font-weight:650; font-size:17px; border:1px solid #ffffffb3; }
+.miyou-avatar { display:inline-block; flex:0 0 40px; width:40px; height:40px; border-radius:50%; background:linear-gradient(145deg,#e1edf8,#d5d9f5); color:#33476a; font-weight:650; font-size:17px; border:1px solid #ffffffb3; }
 .miyou-avatar { overflow:hidden; }
 .miyou-avatar img { display:block; width:100%; height:100%; object-fit:cover; }
 .miyou-pair { display:flex; align-items:center; padding-right:2px; }
@@ -107,3 +107,31 @@ html[data-keyboard-open="true"] :is(.miyou-quick-replies,.miyou-pet-banner) { di
 @media(max-height:600px) { .miyou-quick-replies { display:none; }.miyou-emoji { max-height:160px; } }
 
 @media(max-height:650px) { .miyou-pet-stage { min-height:200px; height:200px; } }
+
+/* The phone shell owns one full-height skin, including its status-bar area. */
+.phone-frame[data-app-skin]:has(.miyou-space) .safe-top { background:transparent; box-shadow:none; }
+.phone-frame[data-app-skin] .miyou-space .miyou-search input,
+.phone-frame .miyou-space .miyou-search input:focus,
+.phone-frame .miyou-space .miyou-search input:focus-visible {
+  border:0; border-radius:0; background:transparent !important; box-shadow:none !important; outline:none;
+  padding:10px 0; min-width:0; flex:1;
+}
+.miyou-search:focus-within { box-shadow:inset 0 0 0 1px var(--mi-accent); }
+.miyou-add-friend { padding-top:6px; }
+.miyou-add-friend form { display:grid; gap:12px; }
+.miyou-invite-identity { display:grid; justify-items:center; gap:14px; padding:32px 8px 24px; text-align:center; }
+.miyou-invite-identity .miyou-avatar { width:88px; height:88px; }
+.miyou-invite-identity strong { font-size:20px; }
+.miyou-invite-identity .miyou-code { font-size:14px; word-break:break-all; user-select:all; }
+.miyou-invite-tools { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.miyou-invite-tools button { display:grid; justify-items:center; gap:10px; padding:16px 4px; border:1px solid #fff9; border-radius:18px; background:var(--mi-surface); font-size:13px; }
+
+.miyou-invite-tools { grid-template-columns:repeat(auto-fit,minmax(72px,1fr)); }
+.miyou-nearby { text-align:center; padding:40px 4px 16px; }
+.miyou-nearby>svg { color:var(--mi-accent); }
+.miyou-nearby h2 { font-size:21px; margin:20px 0 12px; }
+.miyou-nearby p { font-size:14px; color:var(--mi-soft); }
+.miyou-nearby-peers { margin-top:28px; }
+.miyou-nearby-peers>div { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--mi-line); }
+.miyou-nearby-peers img { width:44px; height:44px; border-radius:50%; background:#fff9; }
+.miyou-nearby-peers strong { flex:1; text-align:start; }

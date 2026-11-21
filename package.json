@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "miyou:nearby:test": "node scripts/verify-miyou-nearby.mjs",
     "miyou:db:test": "node scripts/verify-miyou-db.mjs",
     "miyou:visual": "node scripts/verify-miyou-ui.mjs",
     "dev": "node scripts/run-vite-with-project-env.mjs --host 0.0.0.0",

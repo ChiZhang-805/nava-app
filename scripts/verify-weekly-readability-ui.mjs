@@ -118,7 +118,8 @@ try {
       await open(false);
       for (let i = 0; i < 8; i++) await page.getByRole("button", { name: "上一周", exact: true }).click();
       await expect(page.locator(".weekly-trajectory-placeholder-day")).toHaveCount(7);
-      await expect(page.locator(".weekly-insight-body > p")).toBeVisible();
+      await expect(page.locator(".weekly-ai-summary-list li")).toHaveCount(3);
+      await expect(page.locator(".weekly-insight-card header")).toContainText("AI 周节律洞察");
       await measure("empty");
       await page.screenshot({ path: `${output}/${width}-empty.png` });
       await open(true, "en");

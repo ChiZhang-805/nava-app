@@ -60,7 +60,7 @@ function resolveAction(action: WatchAction): ResolvedWatchAction {
   return { ...action, actionId: action.actionId?.trim() || crypto.randomUUID() } as ResolvedWatchAction;
 }
 
-export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
+export async function publishWatchSnapshot(snapshot: WatchUserSnapshot, options: { requireDelivery?: boolean } = {}) {
   let canonicalSnapshot = snapshot;
   if (!isDemoMode()) {
     const response = await supabase.functions.invoke<{ snapshot?: WatchUserSnapshot }>("watch-sync", {
@@ -75,14 +75,16 @@ export async function publishWatchSnapshot(snapshot: WatchUserSnapshot) {
     }
     canonicalSnapshot = response.data.snapshot;
   }
-  localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, canonicalSnapshot.userId), JSON.stringify(canonicalSnapshot));
   if (Capacitor.isNativePlatform()) {
     try {
-      await NavaWatchBridge.publishSnapshot({ snapshot: canonicalSnapshot });
-    } catch {
+      const result = await NavaWatchBridge.publishSnapshot({ snapshot: canonicalSnapshot });
+      if (!result.ok) throw new Error("Apple Watch connection is unavailable. Try again.");
+    } catch (error) {
+      if (options.requireDelivery) throw error;
       // Local snapshot remains available for the app even if no Watch is paired.
     }
   }
+  localStorage.setItem(accountKey(WATCH_SNAPSHOT_KEY, canonicalSnapshot.userId), JSON.stringify(canonicalSnapshot));
   return canonicalSnapshot;
 }
 

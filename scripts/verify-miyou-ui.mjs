@@ -10,6 +10,7 @@ const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/miyou';await mkd
 const {db,rpc}=await createMiyouTestDb();
 const a='00000000-0000-4000-8000-000000000001',b=testUsers[1];
 await db.query('insert into auth.users(id) values($1)',[a]);
+await db.query('insert into public.profiles(id,username) values($1,$2),($3,$4)',[a,'小禾',b,'阿澄']);
 const server=await createServer({plugins:[{name:'isolated-miyou-test-peer',resolveId(id){if(id==='virtual:miyou-peer')return '\0miyou-peer';},load(id){if(id==='\0miyou-peer')return `import React from 'react';import{createRoot}from'react-dom/client';import Miyou from'/src/features/MiyouSpace.tsx';createRoot(document.getElementById('root')).render(React.createElement('div',{className:'phone-frame'},React.createElement(Miyou,{userId:'${b}',locale:'zh',onBack:()=>{}})));`;},configureServer(vite){
  vite.middlewares.use('/__miyou-peer',async(req,res)=>{
   const html=await vite.transformIndexHtml('/__miyou-peer',`<!doctype html><html lang="zh"><head><meta name="viewport" content="width=device-width,initial-scale=1"/><style>html,body,#root{margin:0;height:100%;font-family:system-ui}.phone-frame{height:100%;background:#e6effa}</style></head><body><div id="root"></div><script type="module" src="/@id/virtual:miyou-peer"></script></body></html>`);
@@ -44,17 +45,23 @@ try {for(const [engine,type] of Object.entries({chromium,webkit})){
   await page.goto(`${base}?demo=1#tab=today&view=friend-space`);
   if(await page.locator('.launch-sequence').isVisible())await page.locator('.launch-sequence').click();
   if(engine==='chromium'){
-   await page.getByLabel('好友看到的名字').fill('小禾');await page.getByRole('button',{name:'进入咪友空间'}).click();
-   await expect(page.getByRole('button',{name:'邀请好友',exact:true})).toBeVisible();
+   await expect(page.locator('.miyou-search')).toBeVisible();
+   await expect(page.locator('.miyou-welcome')).toHaveCount(0);
+   await page.locator('.miyou-search input').focus();
+   const searchStyle=await page.locator('.miyou-search input').evaluate(el=>({border:getComputedStyle(el).borderWidth,shadow:getComputedStyle(el).boxShadow,background:getComputedStyle(el).backgroundColor}));
+   assert.deepEqual(searchStyle,{border:'0px',shadow:'none',background:'rgba(0, 0, 0, 0)'});
    await page.screenshot({path:`${out}/${engine}-empty.png`});
    peerContext=await contextFor(b);const peerPage=await peerContext.newPage();
    peerPage.on('pageerror',e=>errors.push(e.message));
    await peerPage.goto(`${base}__miyou-peer`);
-   await peerPage.getByLabel('好友看到的名字').fill('阿澄').catch(async e=>{await peerPage.screenshot({path:`${out}/peer-failure.png`});console.error(errors,await peerPage.locator('body').innerText());throw e;});
-   await peerPage.getByRole('button',{name:'进入咪友空间'}).click();
    await expect(peerPage.locator('.miyou-search')).toBeVisible();
    const code=(await rpc(b,'state')).me.code;
    await page.getByRole('button',{name:'添加好友',exact:true}).click();
+   await expect(page.locator('.miyou-add-friend')).toBeVisible();
+   await page.locator('.miyou-invite-identity .miyou-avatar img').evaluate(async img=>{await img.decode();});
+   const avatar=await page.locator('.miyou-invite-identity .miyou-avatar').evaluate(el=>({box:el.getBoundingClientRect().toJSON(),img:el.querySelector('img').getBoundingClientRect().toJSON(),grid:getComputedStyle(el).gridTemplateRows}));
+   assert(avatar.img.height <= avatar.box.height && avatar.img.width <= avatar.box.width,'Avatar image must fit its circular frame');
+   await page.screenshot({path:`${out}/${engine}-add-friend.png`});
    await page.getByLabel('好友的邀请码', {exact:true}).fill(code);await page.getByRole('button',{name:'发送好友请求'}).click();
    await expect(page.locator('.miyou-friend')).toContainText('阿澄');
    const link=(await rpc(b,'state')).friends[0].id;
@@ -88,12 +95,14 @@ try {for(const [engine,type] of Object.entries({chromium,webkit})){
    await expect(page.getByRole('button',{name:'发送',exact:true})).toBeEnabled();await page.getByRole('button',{name:'发送',exact:true}).click();
    await expect(page.getByLabel('消息',{exact:true})).toHaveValue('');
    assert.equal((await rpc(b,'messages',{linkId:link})).messages.filter(m=>m.body==='断网重试也只有一条').length,1);
-   await page.locator('.miyou-pet-banner').click();await page.getByLabel('小猫名字',{exact:true}).fill('云朵');await page.getByRole('button',{name:'邀请一起养'}).click();
-   await expect(page.locator('.miyou-adopt')).toContainText('等待好友加入');await peerPage.bringToFront();await peerPage.locator('.miyou-pet-banner').click();
-   await expect(peerPage.getByRole('button',{name:'一起养',exact:true})).toBeVisible({timeout:12000});
-   await peerPage.getByRole('button',{name:'一起养',exact:true}).click();
+   await page.locator('.miyou-pet-banner').click();
+   await expect(page.locator('.miyou-pet-name')).toContainText('纳瓦咪');
+   await expect(page.locator('.miyou-adopt')).toHaveCount(0);
+   await page.locator('.miyou-pet-name').click();await page.getByRole('textbox',{name:'小猫名字',exact:true}).fill('云朵');
+   await page.getByRole('button',{name:'保存名字'}).click();
+   await peerPage.bringToFront();await peerPage.locator('.miyou-pet-banner').click();
+   await expect(peerPage.locator('.miyou-care-actions')).toBeVisible({timeout:12000});
    await page.bringToFront();
-   await expect(page.locator('.miyou-care-actions')).toBeVisible({timeout:12000});
    await page.locator('.miyou-care-actions').getByRole('button',{name:'喂食',exact:true}).click();
    await expect(page.locator('.miyou-catalog button')).toHaveCount(8);
    await page.locator('.miyou-catalog').getByRole('button',{name:/南瓜小食/}).click();

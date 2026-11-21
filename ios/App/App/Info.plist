@@ -30,8 +30,12 @@
 	<string>NAVA 读取 Apple 健康数据，用于生成个人节律洞察。</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>NAVA 仅在您主动选择并确认时，将相应的健康记录写入 Apple 健康。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>NAVA 在您打开面对面加好友时发现附近的咪友。</string>
+	<key>NSBonjourServices</key>
+	<array><string>_nava-miyou._tcp</string></array>
 	<key>NSMotionUsageDescription</key>
-	<string>NAVA 仅在本机使用设备动作数据，让动态背景响应您的 iPhone 移动。</string>
+	<string>NAVA 仅在本机使用动作数据，让动态背景响应移动，并在面对面页面识别摇一摇。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>NAVA 使用麦克风将您的语音实时转换为对话文字。</string>
 	<key>NSCameraUsageDescription</key>

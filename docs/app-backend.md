@@ -751,7 +751,7 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 目标为现有 canonical 项目 `wxteapvwagvhhtrjrbim`；没有应用其他待定迁移、创建账号或写入测试记录。
 前者创建 `miyou_people/links/messages/pets/care_catalog/care_events/reports` 七张表及 `nava_miyou(action,payload)` RPC。
 所有表启用 RLS 并撤销客户端直接访问；RPC 固定空 search_path、按 auth.uid() 验证成员，客户端没有 service-role。
-好友和共同宠物分别需要对方接受；邀请码一次使用后轮换。消息有幂等 UUID、跨会话发送限流、同会话引用和分页；
+好友需要对方接受，接受事务内自动创建默认名「纳瓦咪」的共享宠物，无二次领养步骤；邀请码一次使用后轮换。消息有幂等 UUID、跨会话发送限流、同会话引用和分页；
 宠物照料由服务端目录决定时长，事务锁拒绝重叠操作，成长按完成日期/类别汇总。客户端不上传成长值或结束时间。
 读取只标记实际取回的消息边界，避免把拉取后新到的消息误读。屏蔽和举报有认证与关系边界。
 头像仅通过 RPC 返回本人或已接受、未屏蔽好友的头像引用，不返回健康资料。新增 storage SELECT
@@ -776,9 +776,28 @@ schema lint 未报告咪友函数问题；既有 `sync_food_render_jobs` 的 tex
 | `miyou_people` | `user_id`, `name`, `invite_code`, `invite_expires_at`, `last_request_at`, `created_at`：现有账号的社交资料 |
 | `miyou_links` | `id`, `user_a`, `user_b`, `requested_by`, `status`, `blocked_by`, `read_a`, `read_b`, `created_at`：好友关系与已读位置 |
 | `miyou_messages` | `id`, `link_id`, `sender_id`, `request_id`, `body`, `reply_id`, `created_at`, `expires_at`：消息、引用和到期清理 |
-| `miyou_pets` | `link_id`, `name`, `requested_by`, `accepted_at`, `timezone`, `created_at`：共养邀请、小猫名字与结算时区 |
+| `miyou_pets` | `link_id`, `name`, `requested_by`, `accepted_at`, `timezone`, `created_at`：共享小猫名字、建立时间与结算时区 |
 | `miyou_care_catalog` | `id`, `kind`, `name_zh`, `name_en`, `duration_minutes`, `asset`, `sort_order`：喂食、运动、休息目录 |
 | `miyou_care_events` | `id`, `link_id`, `actor_id`, `request_id`, `item_id`, `started_at`, `ends_at`：操作记录与服务端计时 |
 | `miyou_reports` | `id`, `reporter_id`, `link_id`, `message_id`, `reason`, `created_at`：私有举报记录 |
 
 关键字段有数据库中文说明；主键、外键、唯一约束、查找和清理索引均随迁移部署。
+
+### 直接进入与面对面发现（2026-11-22）
+
+已选择性部署增量迁移 `202611220003_miyou_direct_entry.sql` 与 `202611220004_miyou_nearby.sql`。
+部署后为 8 表、53 字段；表权限、RPC 权限和 cron 元数据核对通过，未创建生产账号。
+首次 state 复用 profiles.username 初始化社交资料，邮件或电话式默认用户名回退为「咪友」。
+接受好友的同一事务创建一只「纳瓦咪」，可随后改名；已有关系补齐宠物并保留自定义名称及照料历史。
+
+`miyou_nearby` 增加 `user_id/token/expires_at/created_at` 四字段，RLS 开启且撤销直接访问。
+认证 RPC `nava_miyou_nearby` 提供 start/stop/find/invite：随机 UUID 90 秒有效，开始限频 5 秒，
+每次最多查询 20 个广播凭据，屏蔽/拒绝关系不返回，好友请求复用既有每日限额与对方接受流程。
+stop 只删除本人且 token 匹配的会话，旧请求不能清掉新会话。过期即时不可用，每小时物理清理。
+该表是短暂发现状态，不进入账号长期导出；删除账号时外键级联清理。
+
+iOS 面对面使用 CoreMotion 摇动触发与 Network.framework Bonjour includePeerToPeer，
+只在双方主动开启页面后广播临时凭据；名字通过认证服务端解析。离开/后台停止，回到前台重新启动摇动监听。
+这不是 NameDrop API、NFC 碰撞或仅蓝牙配对；局域网/点对点 Wi-Fi 可发现，不宣称距离测量。
+通讯录入口使用 CNContactPicker 选择一个号码，再打开系统短信编辑器，由用户确认发送邀请码；
+没有上传整个通讯录，也没有声称能列出所有已注册联系人。分享入口接系统 Share Sheet。

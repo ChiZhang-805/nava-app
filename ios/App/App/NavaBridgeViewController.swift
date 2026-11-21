@@ -1,6 +1,10 @@
 import AuthenticationServices
 import Capacitor
 import CryptoKit
+import ContactsUI
+import MessageUI
+import Network
+import CoreMotion
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -82,6 +86,8 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         bridge?.registerPluginInstance(NavaAppleSignInPlugin())
         bridge?.registerPluginInstance(NavaExternalAuthPlugin())
         bridge?.registerPluginInstance(NavaAuthViewportPlugin())
+        bridge?.registerPluginInstance(NavaContactInvitePlugin())
+        bridge?.registerPluginInstance(NavaNearbyPlugin())
 
         if NavaNativeFeatureFlag.isEnabled, startsOnDietDashboard {
             presentNativeExperience()
@@ -213,6 +219,72 @@ final class NavaBridgeViewController: CAPBridgeViewController, WKScriptMessageHa
         host.view.removeFromSuperview()
         host.removeFromParent()
         nativeHost = nil
+    }
+}
+
+/// System-selected phone number stays native; the user sends the invitation.
+@objc(NavaContactInvitePlugin)
+final class NavaContactInvitePlugin: CAPPlugin, CAPBridgedPlugin, CNContactPickerDelegate, MFMessageComposeViewControllerDelegate {
+    let identifier = "NavaContactInvitePlugin"
+    let jsName = "NavaContactInvite"
+    let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "invite", returnType: CAPPluginReturnPromise)]
+    private var pending: CAPPluginCall?
+    private var invitation = ""
+
+    @objc func invite(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.pending == nil, let host = self.bridge?.viewController,
+                  host.presentedViewController == nil else {
+                call.reject("请先关闭当前窗口再试。", "CONTACTS_BUSY"); return
+            }
+            guard MFMessageComposeViewController.canSendText() else {
+                call.reject("此设备无法发送信息，请使用分享邀请。", "MESSAGES_UNAVAILABLE"); return
+            }
+            guard let text = call.getString("text"), !text.isEmpty, text.count <= 500 else {
+                call.reject("邀请内容无效。", "INVITE_INVALID"); return
+            }
+            self.pending = call
+            self.invitation = text
+            let picker = CNContactPickerViewController()
+            picker.delegate = self
+            picker.displayedPropertyKeys = [CNContactPhoneNumbersKey]
+            picker.predicateForEnablingContact = NSPredicate(format: "phoneNumbers.@count > 0")
+            picker.predicateForSelectionOfContact = NSPredicate(value: false)
+            picker.predicateForSelectionOfProperty = NSPredicate(format: "key == 'phoneNumbers'")
+            host.present(picker, animated: true)
+        }
+    }
+
+    func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+        finish("cancelled")
+    }
+
+    func contactPicker(_ picker: CNContactPickerViewController, didSelect property: CNContactProperty) {
+        guard let number = property.value as? CNPhoneNumber else { finish("cancelled"); return }
+        let phone = number.stringValue
+        picker.dismiss(animated: true) { [weak self] in
+            guard let self, self.pending != nil, let host = self.bridge?.viewController else { return }
+            let composer = MFMessageComposeViewController()
+            composer.messageComposeDelegate = self
+            composer.recipients = [phone]
+            composer.body = self.invitation
+            host.present(composer, animated: true)
+        }
+    }
+
+    func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
+        controller.dismiss(animated: true) { [weak self] in
+            guard let self else { return }
+            if result == .failed {
+                let call = self.pending; self.pending = nil; self.invitation = ""
+                call?.reject("邀请未发送，请重试。", "INVITE_SEND_FAILED")
+            } else { self.finish(result == .sent ? "sent" : "cancelled") }
+        }
+    }
+
+    private func finish(_ status: String) {
+        let call = pending; pending = nil; invitation = ""
+        call?.resolve(["status": status])
     }
 }
 
@@ -516,5 +588,116 @@ final class NavaWakeLockPlugin: CAPPlugin, CAPBridgedPlugin {
     deinit {
         if let observer { NotificationCenter.default.removeObserver(observer) }
         DispatchQueue.main.async { UIApplication.shared.isIdleTimerDisabled = false }
+    }
+}
+
+/// Foreground-only Bonjour discovery over Apple's peer-to-peer network.
+/// Only a 90-second random token is advertised; identities are resolved by Auth.
+@objc(NavaNearbyPlugin)
+final class NavaNearbyPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "NavaNearbyPlugin"
+    let jsName = "NavaNearby"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "watchShake", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise)
+    ]
+    private let motion = CMMotionManager()
+    private var listener: NWListener?
+    private var browser: NWBrowser?
+    private var expiry: DispatchWorkItem?
+    private var currentToken: String?
+    private var lastShake = Date.distantPast
+    private var backgroundObserver: NSObjectProtocol?
+
+    override func load() {
+        backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.stopDiscovery()
+            self?.motion.stopAccelerometerUpdates()
+            self?.notifyListeners("stopped", data: [:])
+        }
+    }
+    deinit {
+        if let backgroundObserver { NotificationCenter.default.removeObserver(backgroundObserver) }
+        motion.stopAccelerometerUpdates()
+        browser?.cancel(); listener?.cancel(); expiry?.cancel()
+    }
+    @objc func watchShake(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.motion.isAccelerometerAvailable else { call.resolve(["available": false]); return }
+            self.motion.stopAccelerometerUpdates()
+            self.motion.accelerometerUpdateInterval = 0.1
+            self.motion.startAccelerometerUpdates(to: .main) { [weak self] sample, _ in
+                guard let self, let a = sample?.acceleration else { return }
+                let force = sqrt(a.x*a.x + a.y*a.y + a.z*a.z)
+                if force > 2.5, Date().timeIntervalSince(self.lastShake) > 2 {
+                    self.lastShake = Date()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    self.notifyListeners("shake", data: [:])
+                }
+            }
+            call.resolve(["available": true])
+        }
+    }
+    @objc func start(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard UIApplication.shared.applicationState == .active else { call.reject("Return to the app to find nearby friends."); return }
+            guard let token = call.getString("token"), UUID(uuidString: token) != nil else { call.reject("Invalid nearby token"); return }
+            self.stopDiscovery()
+            self.currentToken = token
+            let parameters = NWParameters.tcp
+            parameters.includePeerToPeer = true
+            do {
+                let listener = try NWListener(using: parameters)
+                listener.service = NWListener.Service(name: token, type: "_nava-miyou._tcp")
+                listener.newConnectionHandler = { connection in connection.cancel() }
+                listener.stateUpdateHandler = { [weak self] state in
+                    if case .failed = state { self?.failed(token: token) }
+                    if case .waiting = state, self?.currentToken == token { self?.notifyListeners("waiting", data: [:]) }
+                }
+                let browser = NWBrowser(for: .bonjour(type: "_nava-miyou._tcp", domain: nil), using: parameters)
+                browser.stateUpdateHandler = { [weak self] state in
+                    if case .failed = state { self?.failed(token: token) }
+                    if case .waiting = state, self?.currentToken == token { self?.notifyListeners("waiting", data: [:]) }
+                    if case .ready = state, self?.currentToken == token { self?.notifyListeners("ready", data: [:]) }
+                }
+                browser.browseResultsChangedHandler = { [weak self] results, _ in
+                    guard self?.currentToken == token else { return }
+                    let tokens = results.compactMap { result -> String? in
+                        guard case let .service(name, _, _, _) = result.endpoint, UUID(uuidString: name) != nil, name != token else { return nil }
+                        return name
+                    }.sorted()
+                    self?.notifyListeners("peers", data: ["tokens": Array(tokens.prefix(20))])
+                }
+                self.listener = listener; self.browser = browser
+                listener.start(queue: .main); browser.start(queue: .main)
+                let expiry = DispatchWorkItem { [weak self] in
+                    guard self?.currentToken == token else { return }
+                    self?.stopDiscovery(); self?.notifyListeners("stopped", data: [:])
+                }
+                self.expiry = expiry
+                DispatchQueue.main.asyncAfter(deadline: .now()+85, execute: expiry)
+                call.resolve(["started": true])
+            } catch {
+                self.stopDiscovery(); call.reject("无法开始附近发现，请重试。", "NEARBY_UNAVAILABLE", error)
+            }
+        }
+    }
+    private func failed(token: String) {
+        guard currentToken == token else { return }
+        stopDiscovery()
+        notifyListeners("failed", data: [:])
+    }
+    private func stopDiscovery() {
+        currentToken = nil
+        expiry?.cancel(); expiry = nil
+        browser?.cancel(); browser = nil
+        listener?.cancel(); listener = nil
+    }
+    @objc func stop(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            self.stopDiscovery(); self.motion.stopAccelerometerUpdates()
+            call.resolve(["stopped": true])
+        }
     }
 }

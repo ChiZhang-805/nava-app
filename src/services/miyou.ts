@@ -20,6 +20,7 @@ export function miyouError(error: unknown, zh: boolean) {
   const message = error instanceof Error ? error.message : String((error as { message?: string })?.message ?? '');
   const code = String((error as { code?: string })?.code ?? '');
   const errors: Record<string, [string,string]> = {
+    miyou_nearby_expired: ['本次发现已结束，请重新查找。','This discovery has ended. Find friends again.'],
     miyou_pet_busy: ['照料进行中','Care in progress'],
     miyou_invite_invalid: ['邀请码已失效，请让好友重新分享。','This code is unavailable. Ask your friend for a new one.'],
     miyou_blocked: ['这段会话已暂停。','This conversation is paused.'],

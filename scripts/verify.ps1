@@ -179,5 +179,6 @@ Invoke-Npm -Arguments @("run", "journal:motion:test")
 Invoke-Npm -Arguments @("run", "journal:motion:visual")
 Write-Host "37. Miyou account-bound conversations and cooperative care"
 Invoke-Npm -Arguments @("run", "miyou:db:test")
+Invoke-Npm -Arguments @("run", "miyou:nearby:test")
 Invoke-Npm -Arguments @("run", "miyou:visual")
 Write-Host "Verification completed."

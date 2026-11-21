@@ -4,7 +4,7 @@ import { mkdir,writeFile,readFile } from 'node:fs/promises';
 import { createMiyouTestDb,testUsers } from './miyou-test-db.mjs';
 const out='Q:/NAVA-Workspace/NAVA-App/Build/TestRuns/App-Checks/miyou';
 await mkdir(out,{recursive:true});
-const {db,rpc}=await createMiyouTestDb();
+const {db,rpc,nearby}=await createMiyouTestDb();
 const [a,b,c]=testUsers;const checks=[];
 async function check(name,fn){await fn();checks.push(name);}
 const fails=(fn,pattern)=>assert.rejects(fn,pattern);
@@ -16,7 +16,13 @@ await check('No public or direct authenticated table access',async()=>{
   }
   await fails(()=>db.transaction(async tx=>{await tx.exec('set local role anon');await tx.query("select public.nava_miyou('state')");}),/permission denied/);
 });
-assert.equal((await rpc(a,'state')).registered,false);
+await check('Direct entry reuses profile without exposing login identifiers',async()=>{
+ await db.query('insert into public.profiles(id,username) values($1,$2),($3,$4)',[a,'小禾',b,'private@example.com']);
+ assert.equal((await rpc(a,'state')).me.name,'小禾');
+ assert.equal((await rpc(b,'state')).me.name,'咪友');
+ assert.equal((await rpc(a,'state')).registered,true);
+ assert.equal((await db.query('select count(*)::int n from public.miyou_people where user_id=$1',[a])).rows[0].n,1);
+});
 for(const [id,name] of [[a,'小禾'],[b,'阿澄'],[c,'旁观者']])await rpc(id,'join',{name});
 await check('Expanded virtual catalog has 8 foods, 6 activities, 3 rests',async()=>{
  const catalog=(await rpc(a,'state')).catalog;
@@ -41,7 +47,7 @@ await check('Third party cannot read messages or operate the pet',async()=>{
 });
 await check('Only accepted unblocked friends read the current avatar, never private profile fields or old files',async()=>{
   const ref=`storage://profile-avatars/${b}/avatar-current`;
-  await db.query('insert into public.profiles(id,avatar_url) values($1,$2)',[b,ref]);
+  await db.query('insert into public.profiles(id,avatar_url) values($1,$2) on conflict(id) do update set avatar_url=excluded.avatar_url',[b,ref]);
   await db.query("insert into storage.objects values ('profile-avatars',$1),('profile-avatars',$2),('other-media',$1)",[`${b}/avatar-current`,`${b}/old-photo`]);
   const visible=user=>db.transaction(async tx=>{
     await tx.query("select set_config('request.jwt.claim.sub',$1,true)",[user]);
@@ -83,15 +89,17 @@ await check('Server filters expired messages and expired reply content',async()=
   assert.equal(messages.length,1);assert.equal(messages[0].quote,null);
   await fails(()=>rpc(b,'send',{linkId:link,body:'expired reply',replyId:first.id,requestId:randomUUID()}),/reply_expired/);
 });
-await check('Pet requires separate mutual consent and validates name/timezone',async()=>{
-  await fails(()=>rpc(a,'pet_invite',{linkId:link,name:'',timezone:'Asia/Shanghai'}),/name_invalid/);
-  await fails(()=>rpc(a,'pet_invite',{linkId:link,name:'棉花',timezone:'not-a-zone'}),/timezone_invalid/);
-  await rpc(a,'pet_invite',{linkId:link,name:'棉花',timezone:'Asia/Shanghai'});
-  await fails(()=>rpc(a,'pet_accept',{linkId:link}),/forbidden/);
-  await fails(()=>rpc(a,'care',{linkId:link,itemId:'fish',requestId:randomUUID()}),/pet_pending/);
-  await rpc(b,'pet_accept',{linkId:link});
-  await rpc(b,'pet_name',{linkId:link,name:'云朵'});
-  assert.equal((await rpc(a,'pet',{linkId:link})).pet.name,'云朵');
+await check('Friendship automatically adopts exactly one named pet; rename remains optional',async()=>{
+ const initial=(await rpc(a,'pet',{linkId:link})).pet;
+ assert.equal(initial.name,'纳瓦咪');assert.ok(initial.accepted_at);
+ await rpc(a,'pet_invite',{linkId:link,name:'Old client'});
+ await rpc(a,'pet_accept',{linkId:link});
+ assert.equal((await rpc(b,'pet',{linkId:link})).pet.name,'纳瓦咪');
+ await fails(()=>rpc(a,'pet_decline',{linkId:link}),/forbidden/);
+ await fails(()=>rpc(a,'pet_name',{linkId:link,name:''}),/name_invalid/);
+ await rpc(b,'pet_name',{linkId:link,name:'云朵'});
+ assert.equal((await rpc(a,'pet',{linkId:link})).pet.name,'云朵');
+ assert.equal((await db.query('select count(*)::int n from public.miyou_pets where link_id=$1',[link])).rows[0].n,1);
 });
 const careId=randomUUID();
 await rpc(a,'care',{linkId:link,itemId:'pumpkin',requestId:careId});
@@ -157,6 +165,40 @@ await check('Cron cleanup deletes expired rows, clears reply FK without deleting
   const body=sql.match(/\$job\$([\s\S]*?)\$job\$/)[1];await db.exec(body);
   assert.equal((await db.query('select count(*)::int as n from public.miyou_messages where id=$1',[first.id])).rows[0].n,0);
   const reply=await db.query('select reply_id from public.miyou_messages where body=$1',['好呀，也陪小猫玩一会儿。']);assert.equal(reply.rows[0].reply_id,null);
+});
+await check('Nearby discovery requires auth and live unguessable tokens',async()=>{
+ await fails(()=>nearby(null,'start'),/auth_required/);
+ await fails(()=>db.transaction(async tx=>{await tx.exec('set local role anon');await tx.query("select public.nava_miyou_nearby('start')");}),/permission denied/);
+ await fails(()=>db.transaction(async tx=>{await tx.exec('set local role authenticated');await tx.query('select * from public.miyou_nearby');}),/permission denied/);
+ const sa=await nearby(a,'start'),sb=await nearby(b,'start');
+ assert.notEqual(sa.token,sb.token);
+ await fails(()=>nearby(a,'start'),/rate_limit/);
+ assert.deepEqual(await nearby(a,'find',{tokens:[randomUUID(),sa.token]}),[]);
+ assert.deepEqual(await nearby(a,'find',{tokens:[sb.token]}),[{token:sb.token,name:'阿澄'}]);
+ await fails(()=>nearby(a,'find',{tokens:Array(21).fill(sb.token)}),/message_invalid/);
+ await rpc(b,'block',{linkId:link});
+ assert.deepEqual(await nearby(a,'find',{tokens:[sb.token]}),[]);
+ await db.query("update public.miyou_people set last_request_at=now()-interval '6 seconds' where user_id=$1",[a]);
+ await fails(()=>nearby(a,'invite',{token:sb.token}),/invite_invalid/);
+ await rpc(b,'unblock',{linkId:link});
+ await nearby(a,'stop',{token:sb.token});
+ assert.equal((await nearby(a,'find',{tokens:[sb.token]})).length,1);
+ await db.query("update public.miyou_nearby set created_at=now()-interval '6 seconds' where user_id=$1",[a]);
+ const renewed=await nearby(a,'start');assert.notEqual(renewed.token,sa.token);
+ await nearby(a,'stop',{token:sa.token});
+ assert.equal((await nearby(a,'find',{tokens:[sb.token]})).length,1);
+ await db.query("update public.miyou_nearby set expires_at=now()-interval '1 second' where user_id=$1",[b]);
+ assert.deepEqual(await nearby(a,'find',{tokens:[sb.token]}),[]);
+ await fails(()=>nearby(a,'invite',{token:sb.token}),/nearby_expired/);
+ await fails(()=>nearby(b,'find',{tokens:[renewed.token]}),/nearby_expired/);
+ await nearby(c,'start');await nearby(c,'invite',{token:renewed.token});
+ const request=(await rpc(c,'state')).friends.find(f=>f.peerId===a);
+ assert.equal(request.status,'pending');assert.equal(request.pet,null);
+ await fails(()=>rpc(c,'accept',{linkId:request.id}),/forbidden/);
+ await rpc(a,'accept',{linkId:request.id,timezone:'Asia/Shanghai'});
+ assert.equal((await rpc(c,'pet',{linkId:request.id})).pet.name,'纳瓦咪');
+ await nearby(a,'stop',{token:renewed.token});
+ await fails(()=>nearby(a,'find',{tokens:[]}),/nearby_expired/);
 });
 await check('Deleting either auth account removes shared records',async()=>{
   await db.query('delete from auth.users where id=$1',[a]);

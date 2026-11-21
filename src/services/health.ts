@@ -40,6 +40,7 @@ export interface HealthAuthorizationStatus {
 
 interface NavaHealthPlugin {
   requestAuthorization: () => Promise<{ granted: boolean }>;
+  openSettings: () => Promise<{ opened: boolean }>;
   getAuthorizationStatus: () => Promise<HealthAuthorizationStatus>;
   getTodaySummary: () => Promise<HealthTodayNativeSummary>;
   getRecentSummaries: (options: { days: number }) => Promise<{ summaries: HealthTodayNativeSummary[] }>;
@@ -255,4 +256,10 @@ export async function syncNativeHealthNow(userId: string) {
   }
   const result = { ...response.data, summary };
   return result.uploaded > 0 ? rememberHealthSync(userId, result) : result;
+}
+
+export async function openHealthSettings() {
+  if (!isNativeHealthAvailable() || isDemoMode()) return;
+  const result = await NavaHealth.openSettings();
+  if (!result.opened) throw new Error("Unable to open Settings");
 }

@@ -16,6 +16,7 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
 
     private let pendingActionsQueue = DispatchQueue(label: "health.nava.watch.pending-actions")
     private let maxPendingActions = 100
+    private var activationWaiters: [UUID: (Error?) -> Void] = [:]
 
     public override func load() {
         super.load()
@@ -27,27 +28,31 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
             call.resolve(["ok": false, "reason": "watch_connectivity_unsupported"])
             return
         }
-        activateSession()
-
-        let snapshot = call.getObject("snapshot") ?? [:]
-        do {
-            try WCSession.default.updateApplicationContext(snapshot)
-            call.resolve(["ok": true])
-        } catch {
-            call.reject(error.localizedDescription)
+        withActivatedSession(call) {
+            guard WCSession.default.isPaired, WCSession.default.isWatchAppInstalled else {
+                call.reject("请先配对 Apple Watch 并安装 NAVA 手表 App。", "WATCH_NOT_READY"); return
+            }
+            let snapshot = call.getObject("snapshot") ?? [:]
+            do {
+                // Queues delivery through the system even if the Watch app is
+                // not currently reachable for live messaging.
+                try WCSession.default.updateApplicationContext(snapshot)
+                call.resolve(["ok": true])
+            } catch { call.reject(error.localizedDescription) }
         }
     }
 
     @objc func isReachable(_ call: CAPPluginCall) {
         guard WCSession.isSupported() else {
-            call.resolve(["paired": false, "reachable": false])
-            return
+            call.resolve(["paired": false, "reachable": false]); return
         }
-        activateSession()
-        call.resolve([
-            "paired": WCSession.default.isPaired,
-            "reachable": WCSession.default.isReachable
-        ])
+        withActivatedSession(call) {
+            call.resolve([
+                "paired": WCSession.default.isPaired,
+                "reachable": WCSession.default.isReachable,
+                "installed": WCSession.default.isWatchAppInstalled
+            ])
+        }
     }
 
     @objc func drainPendingActions(_ call: CAPPluginCall) {
@@ -121,7 +126,30 @@ public class NavaWatchBridgePlugin: CAPPlugin, CAPBridgedPlugin, WCSessionDelega
         }
     }
 
-    public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    private func withActivatedSession(_ call: CAPPluginCall, action: @escaping () -> Void) {
+        DispatchQueue.main.async {
+            if WCSession.default.activationState == .activated { action(); return }
+            let token = UUID()
+            self.activationWaiters[token] = { error in
+                if let error { call.reject(error.localizedDescription, "WATCH_ACTIVATION_FAILED") }
+                else { action() }
+            }
+            self.activateSession()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
+                guard let callback = self?.activationWaiters.removeValue(forKey: token) else { return }
+                callback(NSError(domain: "NavaWatch", code: 1, userInfo: [NSLocalizedDescriptionKey: "手表连接尚未就绪，请重试。"]))
+            }
+        }
+    }
+
+    public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        DispatchQueue.main.async {
+            let callbacks = Array(self.activationWaiters.values)
+            self.activationWaiters.removeAll()
+            let failure = error ?? (activationState == .activated ? nil : NSError(domain: "NavaWatch", code: 2, userInfo: [NSLocalizedDescriptionKey: "手表连接尚未激活，请重试。"]))
+            callbacks.forEach { $0(failure) }
+        }
+    }
 
     public func sessionDidBecomeInactive(_ session: WCSession) {}
 

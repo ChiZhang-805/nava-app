@@ -14,6 +14,7 @@ import {
   isNativeHealthAvailable,
   readLastHealthSyncAt,
   requestHealthAuthorization,
+  openHealthSettings,
   syncNativeHealthNow,
   type HealthAuthorizationStatus,
 } from "../services/health";
@@ -531,6 +532,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     const completed = await run("health-auth", null, async () => {
       const authorization = await requestHealthAuthorization();
       if (!authorization.granted) throw new Error("reason" in authorization ? authorization.reason : (locale === "zh" ? "Apple 健康授权未完成。" : "Apple Health authorization was not completed."));
+      await saveProfile({ id: user.id, health_data_consent: true });
       setHealthPhase("checking");
       setHealthAuthorization(await getHealthAuthorizationStatus());
       setHealthPhase("syncing");
@@ -540,58 +542,27 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
         setHealthLastSync(syncResult.lastSyncDate);
       }
     });
-    setHealthPhase(completed ? "complete" : "error");
+    setHealthPhase(completed ? (uploaded > 0 ? "complete" : "idle") : "error");
     if (completed) {
       setMessage(uploaded > 0
         ? t("profile.syncSuccess")
-        : (locale === "zh" ? "授权已更新；当前没有可同步的健康记录。" : "Authorization updated; no health records are currently available."));
+        : (locale === "zh" ? "当前未读到健康记录，可检查健康权限后再次连接。" : "No health records were read. Check Health access and try connecting again."));
       window.setTimeout(() => setHealthPhase("idle"), 1600);
     }
-  }
-
-  async function syncHealth() {
-    setHealthPhase("syncing");
-    const completed = await run("health-sync", null, async () => {
-      const result = await syncNativeHealthNow(user.id);
-      if ("skipped" in result && result.skipped) {
-        const consentDisabled = "reason" in result && result.reason === "health_sync_consent_disabled";
-        throw new Error(consentDisabled
-          ? (locale === "zh" ? "健康数据同步已在隐私设置中关闭。" : "Health data sync is disabled in Privacy settings.")
-          : (locale === "zh" ? "网页不能直接访问 HealthKit，请在 iPhone App 中授权后同步。" : "Web pages cannot access HealthKit. Authorize and sync in the iPhone app."));
-      }
-      if (result.uploaded === 0) throw new Error(locale === "zh"
-        ? "本次没有读取到已授权的 Apple 健康记录，既有真实数据未被零值覆盖。请检查健康权限和手表同步状态。"
-        : "No authorized Apple Health records were available. Existing data was not overwritten with zeros; check Health permissions and Watch sync.");
-      setHealthLastSync(result.lastSyncDate);
-      setHealthAuthorization(await getHealthAuthorizationStatus());
-    });
-    setHealthPhase(completed ? "complete" : "error");
-    if (completed) window.setTimeout(() => setHealthPhase("idle"), 1600);
-  }
-
-  async function connectWatch() {
-    setWatchPhase("checking");
-    const completed = await run("watch-connect", null, async () => {
-      if (!isNativeHealthAvailable()) throw new Error(locale === "zh" ? "Apple Watch 连接仅能在 iPhone App 中完成。" : "Apple Watch can only connect through the iPhone app.");
-      const reachability = await getWatchReachability();
-      setWatchReachable(reachability);
-      if (!reachability.paired) throw new Error(locale === "zh" ? "尚未检测到已配对的 Apple Watch，请先在系统 Watch App 中配对。" : "No paired Apple Watch was found. Pair it in the system Watch app first.");
-    });
-    setWatchPhase(completed ? "complete" : "error");
-    if (completed) window.setTimeout(() => setWatchPhase("idle"), 1600);
   }
 
   async function syncWatch() {
     setWatchPhase("syncing");
     const completed = await run("watch-sync", null, async () => {
       const reachability = await getWatchReachability();
+      setWatchReachable(reachability);
       if (!reachability.paired) throw new Error(locale === "zh" ? "没有已配对的 Apple Watch，无法同步。" : "No paired Apple Watch is available to sync.");
       await flushPendingWatchActions(user.id);
       const now = new Date().toISOString();
       const nextSnapshot: WatchUserSnapshot = watchSnapshot
         ? { ...watchSnapshot, lastSyncedAt: now }
         : { userId: user.id, displayName, today: {}, lastSyncedAt: now };
-      setWatchSnapshot(await publishWatchSnapshot(nextSnapshot));
+      setWatchSnapshot(await publishWatchSnapshot(nextSnapshot, { requireDelivery: true }));
       setWatchReachable(await getWatchReachability());
     });
     setWatchPhase(completed ? "complete" : "error");
@@ -625,7 +596,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
       : healthAuthorization.requested
         ? t("profile.healthAuthorizationRequested")
         : t("profile.healthNeedsAuthorization");
-  const healthCanSync = healthConnected || Boolean(healthAuthorization?.requested);
+  const healthCanSync = healthConnected;
   const healthPhaseText = devicesLoading
     ? (locale === "zh" ? "正在读取设备状态" : "Reading device status")
     : healthPhase === "authorizing" ? (locale === "zh" ? "正在请求 Apple 健康授权" : "Requesting Apple Health access")
@@ -634,7 +605,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
           : healthPhase === "complete" ? (locale === "zh" ? "同步完成" : "Sync complete")
             : healthPhase === "error" ? (locale === "zh" ? "本次操作未完成，请查看下方提示" : "Not completed; see the message below")
               : healthCanSync ? (locale === "zh" ? "轻点同步最新数据" : "Tap to sync the latest data") : (locale === "zh" ? "轻点连接 Apple 健康" : "Tap to connect Apple Health");
-  const watchConnected = Boolean(watchReachable?.paired || watchSnapshot);
+  const watchConnected = Boolean(watchReachable?.paired);
   const watchPhaseText = devicesLoading
     ? (locale === "zh" ? "正在读取手表状态" : "Reading Watch status")
     : watchPhase === "checking" ? (locale === "zh" ? "正在检查配对与连接" : "Checking pairing and reachability")
@@ -706,12 +677,13 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     <div className="stack profile-stack profile-subpage profile-device-experience" data-profile-view="health">
       <SectionCard className="profile-device-card profile-subpage-card profile-one-screen-card" title={<span className="profile-section-title"><Apple size={19} aria-hidden="true" />{t("profile.appleHealth")}</span>}>
         <div className="profile-device-stage" data-phase={devicesLoading ? "checking" : healthPhase} data-connected={healthCanSync ? "true" : "false"}>
-          <button className="profile-device-orb" type="button" onClick={() => void (healthCanSync ? syncHealth() : authorizeHealth())} disabled={devicesLoading || busy === "health-auth" || busy === "health-sync"} aria-label={healthCanSync ? t("profile.syncNow") : t("profile.requestAuth")}>
+          <button className="profile-device-orb" type="button" onClick={() => void authorizeHealth()} disabled={devicesLoading || busy === "health-auth" || busy === "health-sync"} aria-label={healthCanSync ? t("profile.syncNow") : t("profile.requestAuth")}>
             <span className="profile-device-orbit profile-device-orbit-one" aria-hidden="true" />
             <span className="profile-device-orbit profile-device-orbit-two" aria-hidden="true" />
             {healthPhase === "complete" ? <Check size={54} aria-hidden="true" /> : <Apple size={58} aria-hidden="true" />}
           </button>
           <p className="profile-device-status" aria-live="polite" title={error ?? message ?? undefined}>{error ?? message ?? healthPhaseText}</p>
+          {(error || (message && !healthLastSync)) && isNativeHealthAvailable() && <button className="profile-health-settings" type="button" onClick={()=>void openHealthSettings().catch(()=>setError(locale === "zh" ? "请在系统健康 App 中管理 NAVA 的访问权限。" : "Manage NAVA access in the Health app."))}>{locale === "zh" ? "打开系统设置" : "Open Settings"}</button>}
         </div>
         <div className="profile-device-facts">
           <div><span>{locale === "zh" ? "连接状态" : "Connection"}</span><strong>{devicesLoading ? "—" : healthStatus}</strong></div>
@@ -726,7 +698,7 @@ export default function ProfileScreen({ user, refreshKey, onChanged, onOpenOnboa
     <div className="stack profile-stack profile-subpage profile-device-experience" data-profile-view="watch">
       <SectionCard className="profile-device-card profile-subpage-card profile-one-screen-card" title={<span className="profile-section-title"><Watch size={19} aria-hidden="true" />{t("profile.appleWatch")}</span>}>
         <div className="profile-device-stage" data-phase={devicesLoading ? "checking" : watchPhase} data-connected={watchConnected ? "true" : "false"}>
-          <button className="profile-device-orb" type="button" onClick={() => void (watchConnected ? syncWatch() : connectWatch())} disabled={devicesLoading || busy === "watch-connect" || busy === "watch-sync"} aria-label={watchConnected ? t("profile.watchSync") : t("profile.watchConnect")}>
+          <button className="profile-device-orb" type="button" onClick={() => void syncWatch()} disabled={devicesLoading || busy === "watch-connect" || busy === "watch-sync"} aria-label={watchConnected ? t("profile.watchSync") : t("profile.watchConnect")}>
             <span className="profile-device-orbit profile-device-orbit-one" aria-hidden="true" />
             <span className="profile-device-orbit profile-device-orbit-two" aria-hidden="true" />
             {watchPhase === "complete" ? <Check size={54} aria-hidden="true" /> : <Watch size={58} aria-hidden="true" />}

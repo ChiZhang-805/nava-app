@@ -1,4 +1,4 @@
-import { ArrowLeft, Cat, ChevronRight, Ellipsis, Heart, Keyboard, Mic, Pencil, Plus, Search, SendHorizontal, Smile, X } from 'lucide-react';
+import { ArrowLeft, BookUser, Copy, Share2, RefreshCw, Smartphone, Cat, ChevronRight, Ellipsis, Keyboard, Mic, Pencil, Plus, Search, SendHorizontal, Smile, X } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import BottomSheet from '../components/BottomSheet';
 import MascotImage from '../components/MascotImage';
@@ -9,6 +9,8 @@ import catPlaying from '../assets/mascot/animated/home-butterfly.webp';
 import catSleeping from '../assets/mascot/animated/home-drowsy.webp';
 import { startVoiceInput, type VoiceInputSession } from '../services/voice';
 import { animalAvatar, resolveMiyouAvatar, careAsset, chatTime, miyouError, miyouRpc, type CareItem, type CareKind, type Friend, type FriendMessage, type MiyouState, type PetState } from '../services/miyou';
+import { canInviteContact, inviteContact, shareMiyouInvite } from '../services/miyouInvite';
+import MiyouNearby from './MiyouNearby';
 import './miyou-space.css';
 
 const emoji = ['😊','🥰','😺','😴','🥳','🥹','😂','🤗','❤️','💙','✨','🌙','☀️','🌷','👍','👏','🙌','🫶','🐾','🎉','🍵','🍀','💪','😎'];
@@ -35,10 +37,9 @@ export default function MiyouSpace({ userId, locale, onBack }: { userId: string;
   const [state, setState] = useState<MiyouState | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [petOpen, setPetOpen] = useState(false);
-  const [sheet, setSheet] = useState<'invite' | 'menu' | 'report' | null>(null);
+  const [sheet, setSheet] = useState<'invite' | 'nearby' | 'menu' | 'report' | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [reason, setReason] = useState('');
   const [search, setSearch] = useState('');
@@ -74,7 +75,8 @@ export default function MiyouSpace({ userId, locale, onBack }: { userId: string;
     finally { busyRef.current=false; setBusy(false); }
   }
   const back = () => {
-    setSheet(null); setError('');
+    setError('');
+    if (sheet) { setSheet(sheet==='nearby'?'invite':null); return; }
     if (petOpen) setPetOpen(false);
     else if (selected) setSelected(null);
     else onBack();
@@ -83,31 +85,38 @@ export default function MiyouSpace({ userId, locale, onBack }: { userId: string;
   return <section className="miyou-space" data-view={petOpen ? 'pet' : selected ? 'chat' : 'list'}>
     <header className="miyou-header">
       <button className="miyou-icon" aria-label={zh?'返回':'Back'} onClick={back}><ArrowLeft size={24}/></button>
-      {friend && !petOpen ? <div className="miyou-chat-title"><Avatar name={friend.name} userId={friend.peerId} source={friend.avatar}/><h1>{friend.name}</h1></div> : <h1>{petOpen ? (friend?.pet?.name || (zh?'我们的纳瓦猫':'Our NAVA cat')) : (zh?'咪友空间':'Miyou Space')}</h1>}
-      <button className="miyou-icon" aria-label={selected ? (zh?'更多':'More') : (zh?'添加好友':'Add friend')} onClick={()=>setSheet(selected?'menu':'invite')} disabled={!state?.registered}>{selected?<Ellipsis size={24}/>:<Plus size={24}/>}</button>
+      {friend && !petOpen ? <div className="miyou-chat-title"><Avatar name={friend.name} userId={friend.peerId} source={friend.avatar}/><h1>{friend.name}</h1></div> : <h1>{petOpen ? (friend?.pet?.name || (zh?'纳瓦咪':'Nava Mi')) : (sheet==='nearby' ? (zh?'面对面':'Face to face') : sheet==='invite' ? (zh?'添加好友':'Add friends') : (zh?'咪友空间':'Miyou Space'))}</h1>}
+      {sheet==='invite'||sheet==='nearby' ? <span className="miyou-icon"/> : <button className="miyou-icon" aria-label={selected ? (zh?'更多':'More') : (zh?'添加好友':'Add friend')} onClick={()=>setSheet(selected?'menu':'invite')} disabled={!state?.registered}>{selected?<Ellipsis size={24}/>:<Plus size={24}/>}</button>}
     </header>
     {error && <div className="miyou-error" role="alert"><span>{error}</span><button onClick={()=>{setError('');void refresh().catch(e=>setError(miyouError(e,zh)));}}>{zh?'重试':'Retry'}</button></div>}
     {notice && <p className="miyou-notice" role="status">{notice}</p>}
-    {!state ? <p className="miyou-empty" role="status">{zh?'正在连接咪友空间…':'Connecting to Miyou Space…'}</p> : !state.registered ? <form className="miyou-welcome" onSubmit={e=>{e.preventDefault();void run('join',{name:name.trim()});}}>
-      <img src={catStill} alt=""/>
-      <label>{zh?'好友看到的名字':'Your name for friends'}<input maxLength={24} value={name} onChange={e=>setName(e.target.value)} autoComplete="nickname" required/></label>
-      <button className="miyou-primary" disabled={busy||!name.trim()}>{zh?'进入咪友空间':'Enter Miyou Space'}</button>
-    </form> : !selected ? <div className="miyou-scroll">
+    {!state ? <p className="miyou-empty" role="status">{zh?'正在连接咪友空间…':'Connecting to Miyou Space…'}</p> : sheet==='nearby' ? <MiyouNearby zh={zh} onInvited={()=>{setSheet(null);setNotice(zh?'好友请求已发出':'Friend request sent');void refresh().catch(e=>setError(miyouError(e,zh)));}}/> : sheet==='invite' ? <div className="miyou-add-friend miyou-scroll">
+      <form onSubmit={e=>{e.preventDefault();void run('invite',{code:code.trim()}).then(ok=>{if(ok){setCode('');setSheet(null);setNotice(zh?'好友请求已发出':'Friend request sent');}});}}>
+        <label className="miyou-search"><Search size={19}/><input aria-label={zh?'好友的邀请码':'Your friend’s code'} placeholder={zh?'输入好友邀请码':'Enter a friend’s invite code'} value={code} onChange={e=>setCode(e.target.value)} maxLength={36} autoCapitalize="none" autoCorrect="off" required/></label>
+        <button className="miyou-primary" disabled={busy||!code.trim()}>{zh?'发送好友请求':'Send friend request'}</button>
+      </form>
+      <div className="miyou-invite-identity"><Avatar name={state.me?.name||''} userId={userId} source={state.me?.avatar}/><strong>{state.me?.name}</strong><div className="miyou-code">{state.me?.code}</div><button className="miyou-icon" aria-label={zh?'复制邀请码':'Copy code'} onClick={()=>void navigator.clipboard.writeText(state.me?.code||'').then(()=>setNotice(zh?'邀请码已复制':'Invite code copied')).catch(()=>setNotice(zh?'请长按邀请码复制':'Touch and hold the code to copy'))}><Copy size={20}/></button></div>
+      <div className="miyou-invite-tools">
+        {canInviteContact()&&<button onClick={()=>setSheet('nearby')}><Smartphone size={27}/>{zh?'面对面':'Face to face'}</button>}
+        {canInviteContact()&&<button disabled={busy} onClick={()=>{setBusy(true);void inviteContact(state.me?.code||'',zh).then(result=>{if(result.status==='sent')setNotice(zh?'邀请已发送':'Invitation sent');}).catch(e=>setError(miyouError(e,zh))).finally(()=>setBusy(false));}}><BookUser size={27}/>{zh?'通讯录邀请':'Contacts'}</button>}
+        <button onClick={()=>void shareMiyouInvite(state.me?.code||'',zh).catch(e=>{if(!/cancel/i.test(String(e)))setError(miyouError(e,zh));})}><Share2 size={27}/>{zh?'分享邀请':'Share invite'}</button>
+        <button disabled={busy} onClick={()=>void run('invite_code')}><RefreshCw size={27}/>{zh?'换邀请码':'New code'}</button>
+      </div>
+    </div> : !selected ? <div className="miyou-scroll">
       <label className="miyou-search"><Search size={19}/><input aria-label={zh?'搜索好友':'Search friends'} placeholder={zh?'搜索好友':'Search friends'} value={search} onChange={e=>setSearch(e.target.value)}/></label>
       <div className="miyou-conversations">
         {state.friends?.filter(f=>f.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())).sort((a,b)=>(Date.parse(b.lastMessage?.at||'')||0)-(Date.parse(a.lastMessage?.at||'')||0)).map(f=><div className="miyou-friend-row" key={f.id}>
           <button className="miyou-friend" onClick={()=>openFriend(f.id)}><Avatar name={f.name} userId={f.peerId} source={f.avatar}/><div><strong>{f.name}</strong><p>{f.blocked?(zh?'会话已暂停':'Conversation paused'):f.status==='pending'?(f.incoming?(zh?'想加你为好友':'Wants to be your friend'):(zh?'等待对方接受':'Waiting for acceptance')):f.lastMessage?.body||(zh?'发第一条消息吧':'Say hello')}</p></div><aside>{f.lastMessage&&<time>{chatTime(f.lastMessage.at,Date.now(),zh).split(' ')[0]}</time>}{f.unread>0&&<b aria-label={zh?`${f.unread}条未读`:`${f.unread} unread`}>{Math.min(f.unread,99)}</b>}</aside></button>
         </div>)}
-        {!state.friends?.length&&<div className="miyou-empty"><Heart size={32}/><button className="miyou-primary" onClick={()=>setSheet('invite')}>{zh?'邀请好友':'Invite a friend'}</button></div>}
+        {!state.friends?.length&&<p className="miyou-empty">{zh?'暂无消息':'No messages yet'}</p>}
       </div>
-    </div> : !friend ? <div className="miyou-empty"><p>{zh?'这段会话已不可用。':'This conversation is unavailable.'}</p><button onClick={back}>{zh?'返回':'Back'}</button></div> : friend.blocked ? <div className="miyou-empty"><p>{zh?'这段会话已暂停。':'This conversation is paused.'}</p>{friend.blockedByMe&&<button disabled={busy} onClick={()=>void run('unblock',{linkId:friend.id})}>{zh?'解除屏蔽':'Unblock'}</button>}</div> : friend.status==='pending' ? <div className="miyou-empty"><Avatar name={friend.name} userId={friend.peerId} source={friend.avatar}/><h2>{friend.name}</h2><p>{friend.incoming?(zh?'想和你成为咪友':'Wants to be your friend'):(zh?'等待接受':'Awaiting acceptance')}</p>{friend.incoming&&<div className="miyou-actions"><button disabled={busy} onClick={()=>void run('decline',{linkId:friend.id}).then(ok=>{if(ok)setSelected(null);})}>{zh?'忽略':'Ignore'}</button><button className="miyou-primary" disabled={busy} onClick={()=>void run('accept',{linkId:friend.id})}>{zh?'接受':'Accept'}</button></div>}</div> : <>
+    </div> : !friend ? <div className="miyou-empty"><p>{zh?'这段会话已不可用。':'This conversation is unavailable.'}</p><button onClick={back}>{zh?'返回':'Back'}</button></div> : friend.blocked ? <div className="miyou-empty"><p>{zh?'这段会话已暂停。':'This conversation is paused.'}</p>{friend.blockedByMe&&<button disabled={busy} onClick={()=>void run('unblock',{linkId:friend.id})}>{zh?'解除屏蔽':'Unblock'}</button>}</div> : friend.status==='pending' ? <div className="miyou-empty"><Avatar name={friend.name} userId={friend.peerId} source={friend.avatar}/><h2>{friend.name}</h2><p>{friend.incoming?(zh?'想和你成为咪友':'Wants to be your friend'):(zh?'等待接受':'Awaiting acceptance')}</p>{friend.incoming&&<div className="miyou-actions"><button disabled={busy} onClick={()=>void run('decline',{linkId:friend.id}).then(ok=>{if(ok)setSelected(null);})}>{zh?'忽略':'Ignore'}</button><button className="miyou-primary" disabled={busy} onClick={()=>void run('accept',{linkId:friend.id,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})}>{zh?'接受':'Accept'}</button></div>}</div> : <>
       <div className="miyou-chat-container" hidden={petOpen}><FriendChat key={friend.id} friend={friend} active={!petOpen} userId={userId} me={state.me?.name||''} meAvatar={state.me?.avatar} zh={zh} draftCache={drafts.current} onPet={()=>setPetOpen(true)}/></div>
       {petOpen&&<PetRoom key={friend.id} friend={friend} userId={userId} me={state.me?.name||''} meAvatar={state.me?.avatar} catalog={state.catalog||[]} zh={zh} run={run} busy={busy} actionError={error}/>}
     </>}
-    {sheet&&<BottomSheet label={sheet==='invite'?(zh?'添加好友':'Add a friend'):(zh?'会话设置':'Conversation')} closeLabel={zh?'关闭':'Close'} onClose={()=>setSheet(null)} busy={busy}>
+    {(sheet==='menu'||sheet==='report')&&<BottomSheet label={zh?'会话设置':'Conversation'} closeLabel={zh?'关闭':'Close'} onClose={()=>setSheet(null)} busy={busy}>
       <div className="miyou-sheet">
-        {sheet==='invite'&&<><h2>{zh?'我的邀请码':'My invite code'}</h2><div className="miyou-code">{state?.me?.code}</div><div className="miyou-actions"><button onClick={()=>void navigator.clipboard.writeText(state?.me?.code||'').then(()=>setNotice(zh?'邀请码已复制':'Invite code copied')).catch(()=>setNotice(zh?'请长按邀请码复制':'Touch and hold the code to copy'))}>{zh?'复制邀请码':'Copy code'}</button><button disabled={busy} onClick={()=>void run('invite_code')}>{zh?'换一个':'New code'}</button></div><form onSubmit={e=>{e.preventDefault();void run('invite',{code:code.trim()}).then(ok=>{if(ok){setCode('');setSheet(null);setNotice(zh?'好友请求已发出':'Friend request sent');}});}}><label>{zh?'好友的邀请码':'Your friend’s code'}<input value={code} onChange={e=>setCode(e.target.value)} maxLength={36} autoCapitalize="none" autoCorrect="off" required/></label><button className="miyou-primary" disabled={busy||!code.trim()}>{zh?'发送好友请求':'Send friend request'}</button></form></>}
-        {sheet==='menu'&&friend&&<><h2>{friend.name}</h2>{friend.status==='accepted'&&!friend.blocked&&<button onClick={()=>{setPetOpen(true);setSheet(null);}}><Cat size={22}/>{zh?'我们的纳瓦猫':'Our NAVA cat'}</button>}<button onClick={()=>setSheet('report')}>{zh?'举报这段会话':'Report conversation'}</button><button disabled={busy} onClick={()=>void run(friend.blockedByMe?'unblock':'block',{linkId:friend.id}).then(ok=>{if(ok)setSheet(null);})}>{friend.blockedByMe?(zh?'解除屏蔽':'Unblock'):(zh?'屏蔽此人':'Block this person')}</button></>}
+        {sheet==='menu'&&friend&&<><h2>{friend.name}</h2>{friend.status==='accepted'&&!friend.blocked&&<button onClick={()=>{setPetOpen(true);setSheet(null);}}><Cat size={22}/>{zh?'纳瓦咪':'Nava Mi'}</button>}<button onClick={()=>setSheet('report')}>{zh?'举报这段会话':'Report conversation'}</button><button disabled={busy} onClick={()=>void run(friend.blockedByMe?'unblock':'block',{linkId:friend.id}).then(ok=>{if(ok)setSheet(null);})}>{friend.blockedByMe?(zh?'解除屏蔽':'Unblock'):(zh?'屏蔽此人':'Block this person')}</button></>}
         {sheet==='report'&&friend&&<form onSubmit={e=>{e.preventDefault();void run('report',{linkId:friend.id,reason}).then(ok=>{if(ok){setSheet(null);setReason('');setNotice(zh?'举报已提交':'Report submitted');}});}}><label>{zh?'举报原因':'Reason'}<textarea maxLength={300} value={reason} onChange={e=>setReason(e.target.value)} required/></label><button className="miyou-primary" disabled={busy||!reason.trim()}>{zh?'提交':'Submit'}</button></form>}
         {error&&<p role="alert">{error}</p>}
       </div>
@@ -207,7 +216,7 @@ function FriendChat({friend,active,userId,me,meAvatar,zh,draftCache,onPet}: {fri
     }catch{if(valid()){setRecording(false);setError(zh?'语音输入暂不可用。':'Voice input is unavailable.');}}
   }
   return <>
-    <button className="miyou-pet-banner" onClick={onPet}><img src={catStill} alt=""/><span><strong>{friend.pet?.name||(zh?'一起养只纳瓦猫':'Care for a NAVA cat')}</strong></span><ChevronRight size={18}/></button>
+    <button className="miyou-pet-banner" onClick={onPet}><img src={catStill} alt=""/><span><strong>{friend.pet?.name||(zh?'纳瓦咪':'Nava Mi')}</strong></span><ChevronRight size={18}/></button>
     <div className="miyou-messages" ref={list} onScroll={()=>{const el=list.current;if(el)nearBottom.current=el.scrollHeight-el.scrollTop-el.clientHeight<70;}} role="log" aria-label={zh?'聊天记录':'Conversation'}>
       {hasEarlier&&<button className="miyou-earlier" onClick={()=>void earlier()}>{zh?'查看更早消息':'Earlier messages'}</button>}
       {loading&&<p className="miyou-time">{zh?'正在加载…':'Loading…'}</p>}
@@ -234,7 +243,7 @@ function FriendChat({friend,active,userId,me,meAvatar,zh,draftCache,onPet}: {fri
 
 function PetRoom({friend,userId,me,meAvatar,catalog,zh,run,busy,actionError}:{friend:Friend;userId:string;me:string;meAvatar?:string|null;catalog:CareItem[];zh:boolean;run:(a:string,p?:Record<string,unknown>)=>Promise<boolean>;busy:boolean;actionError:string}) {
   const [data,setData]=useState<PetState|null>(null);
-  const [name,setName]=useState(friend.pet?.name||(zh?'纳瓦猫':'Nava'));
+  const [name,setName]=useState(friend.pet?.name||(zh?'纳瓦咪':'Nava Mi'));
   const [category,setCategory]=useState<CareKind|null>(null);
   const [rename,setRename]=useState(false);
   const [error,setError]=useState('');
@@ -253,9 +262,8 @@ function PetRoom({friend,userId,me,meAvatar,catalog,zh,run,busy,actionError}:{fr
   return <div className="miyou-pet-room miyou-scroll">
     <div className="miyou-pet-top"><div><small>{zh?'一起陪伴':'Days together'}</small><strong>{days}<span>{zh?'天':' days'}</span></strong></div><div className="miyou-pair" role="group" aria-label={zh?'共同陪伴者':'Cat companions'}><Avatar name={me} userId={userId} source={meAvatar}/><Avatar name={friend.name} userId={friend.peerId} source={friend.avatar}/></div></div>
     <div className="miyou-pet-stage"><span className="miyou-star star-one">✦</span><span className="miyou-star star-two">✧</span><span className="miyou-star star-three">✦</span><div className="miyou-pet-platform"/><MascotImage className="miyou-pet-cat" animatedSrc={animation} staticSrc={catStill} alt={zh?'你们的纳瓦猫':'Your shared NAVA cat'}/>{activeItem&&<img className="miyou-active-item" src={careAsset(activeItem.asset)} alt={zh?activeItem.name_zh:activeItem.name_en}/>}</div>
-    {accepted?<><button className="miyou-pet-name" onClick={()=>{setName(friend.pet?.name||'');setRename(true);}}>{data?.pet.name||friend.pet?.name}<Pencil size={15}/></button><p className="miyou-pet-growth">{zh?'成长':'Growth'} {data?`${data.growth} · Lv.${1+Math.floor(data.growth/100)}`:'—'}</p>
+    <button className="miyou-pet-name" onClick={()=>{setName(friend.pet?.name||'');setRename(true);}}>{data?.pet.name||friend.pet?.name}<Pencil size={15}/></button><p className="miyou-pet-growth">{zh?'成长':'Growth'} {data?`${data.growth} · Lv.${1+Math.floor(data.growth/100)}`:'—'}</p>
       <div className="miyou-care-actions">{(['food','exercise','rest'] as CareKind[]).map(kind=><button key={kind} onClick={()=>setCategory(kind)}><img src={careAsset(kind==='food'?'fish':kind==='exercise'?'ball':'sleep')} alt=""/><strong>{names[kind]}</strong></button>)}</div>
-    </>:!friend.pet?<form className="miyou-adopt" onSubmit={e=>{e.preventDefault();void run('pet_invite',{linkId:friend.id,name:name.trim(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone});}}><h2>{zh?'小猫名字':'Cat name'}</h2><input aria-label={zh?'小猫名字':'Cat name'} maxLength={16} value={name} onChange={e=>setName(e.target.value)} required/><button className="miyou-primary" disabled={busy||!name.trim()}>{zh?'邀请一起养':'Invite to care together'}</button></form>:<div className="miyou-adopt"><h2>{friend.pet.name}</h2><p>{friend.pet.requested_by===userId?(zh?'等待好友加入':'Waiting for your friend'):(zh?`${friend.name}邀请你一起养这只纳瓦猫。`:`${friend.name} invited you to care for this cat.`)}</p>{friend.pet.requested_by!==userId&&<button className="miyou-primary" disabled={busy} onClick={()=>void run('pet_accept',{linkId:friend.id})}>{zh?'一起养':'Let’s care together'}</button>}<button disabled={busy} onClick={()=>void run('pet_decline',{linkId:friend.id})}>{zh?'取消邀请':'Dismiss invitation'}</button></div>}
     {error&&<p role="alert">{error}</p>}
     {(category||rename)&&<BottomSheet label={rename?(zh?'小猫名字':'Cat name'):names[category!]} closeLabel={zh?'关闭':'Close'} onClose={()=>{setCategory(null);setRename(false);}} busy={busy}><div className="miyou-sheet">
       {rename?<form onSubmit={e=>{e.preventDefault();void run('pet_name',{linkId:friend.id,name:name.trim()}).then(ok=>{if(ok){setRename(false);void refresh();}});}}><label>{zh?'小猫名字':'Cat name'}<input maxLength={16} value={name} onChange={e=>setName(e.target.value)} required/></label><button className="miyou-primary" disabled={busy||!name.trim()}>{zh?'保存名字':'Save name'}</button></form>:<><h2>{names[category!]}</h2><div className="miyou-catalog">{catalog.filter(item=>item.kind===category).map(item=><button key={item.id} disabled={busy||Boolean(active)||!data} onClick={()=>void run('care',{linkId:friend.id,itemId:item.id,requestId:crypto.randomUUID()}).then(ok=>{if(ok){setCategory(null);void refresh();}})}><img src={careAsset(item.asset)} alt=""/><strong>{zh?item.name_zh:item.name_en}</strong><small>{item.duration_minutes>=60?`${item.duration_minutes/60}${zh?' 小时':' h'}`:`${item.duration_minutes}${zh?' 分钟':' min'}`}</small></button>)}</div></>}

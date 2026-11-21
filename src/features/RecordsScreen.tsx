@@ -6,7 +6,7 @@ import "../styles/detail-sheets.css";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
 import AnimatedNumber from "../components/AnimatedNumber";
 import HealthReportExplorer from "../components/HealthReportExplorer";
-import PageSkeleton, { SkeletonBlock, SkeletonLines } from "../components/PageSkeleton";
+import PageSkeleton, { SkeletonBlock } from "../components/PageSkeleton";
 import CameraCapture from "../components/CameraCapture";
 import PhotoInput from "../components/PhotoInput";
 import LineTrendChart from "../components/LineTrendChart";
@@ -1262,8 +1262,8 @@ export default function RecordsScreen({
         : []
     );
     const weeklyTitle = locale === "zh"
-      ? (weekOffset === 0 ? "AI 上周节律洞察" : "AI 周节律洞察")
-      : (weekOffset === 0 ? "Last week’s AI insights" : "Weekly AI insights");
+      ? "AI 周节律洞察"
+      : "Weekly AI insights";
     const weeklyContent = (
           <div
             className="weekly-health-report"
@@ -1328,14 +1328,16 @@ export default function RecordsScreen({
                 <button type="button" className="weekly-share-button" aria-label={locale === "zh" ? "分享节律海报" : "Share rhythm poster"} disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={22} aria-hidden="true" /></button>
               </header>
               <div className="weekly-insight-body" aria-live="polite">
-                {weeklyAiLoading
-                  ? <SkeletonLines count={4} />
-                  : weeklyRecordedDays < 5
-                    ? <p>{locale === "zh" ? `这周有 ${weeklyRecordedDays} 个记录日。AI 周报需要至少 5 天记录。` : `${weeklyRecordedDays} days logged. Weekly insights require at least 5 recorded days.`}</p>
-                    : visibleInsights.length > 0 && <ul className="weekly-ai-summary-list">
-                        {visibleInsights.map((insight) => <li key={insight.id}><span>{insight.text}</span></li>)}
-                      </ul>}
-                {weeklyAiUnavailable && <small>{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable."}</small>}
+                <ul className="weekly-ai-summary-list">
+                  {(weeklyAiLoading
+                    ? (locale === "zh" ? ["正在整理本周记录", "正在分析节律变化", "洞察即将呈现在这里"] : ["Reviewing this week’s logs", "Analyzing rhythm changes", "Insights will appear here"])
+                    : weeklyRecordedDays < 5
+                      ? (locale === "zh" ? [`这周已记录 ${weeklyRecordedDays} 天`, "满五天记录生成洞察", "少量数据暂不作判断"] : [`${weeklyRecordedDays} days recorded`, "Five days unlock insights", "Too little data to assess"])
+                      : visibleInsights.length > 0 && !weeklyAiUnavailable
+                        ? visibleInsights.map(insight => insight.text)
+                        : (locale === "zh" ? ["本周记录已保留", "AI 洞察暂时不可用", "稍后再来查看更新"] : ["Your weekly logs are saved", "AI insights are unavailable", "Check back for an update"])
+                  ).map((text, index) => <li key={index}><span>{text}</span></li>)}
+                </ul>
                 <MascotImage className="weekly-insight-mascot" animatedSrc={weeklyCuriousMascot} staticSrc={weeklyRunMascot} alt="" loading="lazy" />
               </div>
             </section>
