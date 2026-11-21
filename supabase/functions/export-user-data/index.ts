@@ -1,6 +1,7 @@
 import { errorResponse, jsonResponse, optionsResponse, readJson, requireUser } from "../_shared/http.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
 import { collectExportRows, exportOrderColumn } from "../_shared/export-pagination.ts";
+import { collectMiyouExport } from "../_shared/miyou-export.ts";
 
 const tableContracts = [
   { name: "profiles", column: "id" },
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
     const { user, userClient } = await requireUser(req);
     await readJson(req);
     const result: Record<string, unknown> = {
-      schemaVersion: "1.4.0",
+      schemaVersion: "1.5.0",
       exportedAt: new Date().toISOString(),
       userId: user.id,
       account: {
@@ -88,6 +89,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    Object.assign(result, await collectMiyouExport((kind, offset) => userClient.rpc('nava_miyou_export', {kind, offset_rows: offset})));
     result.paginationVerified = !result.errors;
     result.storage = {
       "diet-photos": await listOwnedFiles(userClient, "diet-photos", user.id),

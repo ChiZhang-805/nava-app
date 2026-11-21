@@ -132,6 +132,25 @@ await check('Report persists privately and block stops chat and pet actions',asy
   await rpc(a,'unblock',{linkId:link});await fails(()=>rpc(a,'messages',{linkId:link}),/blocked/);
   await rpc(b,'unblock',{linkId:link});assert.ok((await rpc(a,'messages',{linkId:link})).messages.length);
 });
+await check('Account export is member-scoped, excludes expired messages and other users reports',async()=>{
+  const exportPage=(user,kind,offset=0)=>db.transaction(async tx=>{
+    await tx.query("select set_config('request.jwt.claim.sub',$1,true)",[user||'']);await tx.exec('set local role authenticated');
+    return (await tx.query('select public.nava_miyou_export($1,$2) as value',[kind,offset])).rows[0].value;
+  });
+  await fails(()=>exportPage(null,'miyou_messages'),/auth_required/);
+  await fails(()=>exportPage(a,'profiles'),/kind_invalid/);
+  await fails(()=>exportPage(a,'miyou_messages',-1),/offset_invalid/);
+  assert.equal((await exportPage(c,'miyou_messages')).total,0);
+  assert.equal((await exportPage(a,'miyou_reports')).total,0);
+  assert.equal((await exportPage(b,'miyou_reports')).total,2);
+  assert.equal((await exportPage(a,'miyou_pets')).total,1);
+  const own=await exportPage(a,'miyou_people');assert.equal(own.rows[0].user_id,a);assert.equal(own.total,1);
+  const messages=await exportPage(a,'miyou_messages');assert.ok(!messages.rows.some(m=>m.id===first.id));
+  await db.query("insert into public.miyou_messages(link_id,sender_id,request_id,body) select $1,$2,gen_random_uuid(),'export pagination' from generate_series(1,510)",[link,a]);
+  const page=await exportPage(a,'miyou_messages'),next=await exportPage(a,'miyou_messages',500);
+  assert.equal(page.rows.length,500);assert.equal(page.rows.length+next.rows.length,page.total);
+  assert.equal(new Set([...page.rows,...next.rows].map(m=>m.id)).size,page.total);
+});
 await check('Cron cleanup deletes expired rows, clears reply FK without deleting reply',async()=>{
   // pg_cron is unavailable in WASM; run the exact job SQL from the migration.
   const sql=await readFile(new URL('../supabase/migrations/202611220002_miyou_retention.sql',import.meta.url),'utf8');

@@ -742,12 +742,13 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 - 正式算法服务 URL、鉴权 key、返回 schema。
 - iOS/Watch 真机编译所需 Mac、Xcode、Apple Developer Team。
 
-## 咪友空间后端合同（待部署）
+## 咪友空间后端合同（已部署，2026-11-21）
 
 咪友空间沿用 NAVA 现有 Supabase Auth 用户与会话，没有独立注册或第二套账号。
 用户明确不另建生产测试账号；本地隔离身份可继续用于自动化，线上验证仅在已授权的现有账号范围内进行。
 
-新增、尚未应用的迁移：`202611220001_miyou_space.sql` 与 `202611220002_miyou_retention.sql`。
+用户明确要求完成 Supabase 后端后，已选择性应用并记录迁移：`202611220001_miyou_space.sql` 与 `202611220002_miyou_retention.sql`。
+目标为现有 canonical 项目 `wxteapvwagvhhtrjrbim`；没有应用其他待定迁移、创建账号或写入测试记录。
 前者创建 `miyou_people/links/messages/pets/care_catalog/care_events/reports` 七张表及 `nava_miyou(action,payload)` RPC。
 所有表启用 RLS 并撤销客户端直接访问；RPC 固定空 search_path、按 auth.uid() 验证成员，客户端没有 service-role。
 好友和共同宠物分别需要对方接受；邀请码一次使用后轮换。消息有幂等 UUID、跨会话发送限流、同会话引用和分页；
@@ -757,6 +758,8 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 策略只允许该关系读取 profiles.avatar_url 当前指向的对象；旧照片和其他媒体桶仍不可读。
 profile-avatars 保持私有，前端签发五分钟 URL 并刷新，失败使用固定动物头像。屏蔽后不再发放
 新链接，既有签名链接按五分钟期限过期。没有将苹果账号头像当作可用字段。
+`nava_miyou_export(kind,offset_rows)` 为现有账号导出六组所属数据，500 行分页，排除过期消息。
+`export-user-data` 已部署为 ACTIVE v35，保留 JWT 校验，导出 schemaVersion 1.5.0。
 后者安装/复用 pg_cron，每小时清理过期消息；RPC 即时过滤过期记录，不依赖任务准点执行。
 删除 auth.users 会级联删除该账号涉及的关系、消息及共同宠物，不会保留无人归属的私聊。
 
@@ -764,4 +767,18 @@ profile-avatars 保持私有，前端签发五分钟 URL 并刷新，失败使�
 `npm run miyou:visual` 通过两个隔离浏览器会话连接同一隔离 PostgreSQL，验证双人邀请/接受、互聊引用、
 丢失发送回执后的幂等重试、共同养猫、刷新持久化和五种屏宽的双引擎界面。后者不检验真实生产 JWT、
 PostgREST 部署、原生麦克风、双真机同步或 cron 调度器。证据在 `Build/TestRuns/App-Checks/miyou`。
-生产迁移、生产端到端验证和新版 TestFlight 均需继续，不可因本地测试通过宣称正式上线。
+线上元数据已确认 7 张表、49 个字段、17 项目录、权限及活跃 cron。没有替用户操作真实会话。
+schema lint 未报告咪友函数问题；既有 `sync_food_render_jobs` 的 text→uuid[] 初始化警告仍在，本轮未更改该函数。
+部署回执和完整字段清单位于 `Build/TestRuns/App-Checks/miyou/production-schema.json`。
+
+| 数据表 | 主要字段与用途 |
+| --- | --- |
+| `miyou_people` | `user_id`, `name`, `invite_code`, `invite_expires_at`, `last_request_at`, `created_at`：现有账号的社交资料 |
+| `miyou_links` | `id`, `user_a`, `user_b`, `requested_by`, `status`, `blocked_by`, `read_a`, `read_b`, `created_at`：好友关系与已读位置 |
+| `miyou_messages` | `id`, `link_id`, `sender_id`, `request_id`, `body`, `reply_id`, `created_at`, `expires_at`：消息、引用和到期清理 |
+| `miyou_pets` | `link_id`, `name`, `requested_by`, `accepted_at`, `timezone`, `created_at`：共养邀请、小猫名字与结算时区 |
+| `miyou_care_catalog` | `id`, `kind`, `name_zh`, `name_en`, `duration_minutes`, `asset`, `sort_order`：喂食、运动、休息目录 |
+| `miyou_care_events` | `id`, `link_id`, `actor_id`, `request_id`, `item_id`, `started_at`, `ends_at`：操作记录与服务端计时 |
+| `miyou_reports` | `id`, `reporter_id`, `link_id`, `message_id`, `reason`, `created_at`：私有举报记录 |
+
+关键字段有数据库中文说明；主键、外键、唯一约束、查找和清理索引均随迁移部署。

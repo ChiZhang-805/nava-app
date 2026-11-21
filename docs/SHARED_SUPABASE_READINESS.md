@@ -2,6 +2,17 @@
 
 The canonical NAVA APP backend is Supabase project `wxteapvwagvhhtrjrbim`. The local review build (`.env.review`, `?demo=1`) is intentionally isolated and never writes to this project. The public build uses `npm run build:pages` and connects through the local, gitignored `.env`.
 
+2026-11-21: following the user's explicit instruction to complete the Supabase backend,
+selectively applied `202611220001_miyou_space.sql` and `202611220002_miyou_retention.sql`
+with migration receipts in one transaction. Seven RLS-protected tables, 49 columns,
+17 virtual care items, member-scoped chat/care/avatar/export RPCs and the active hourly
+21-day message cleanup job are present. No accounts or test conversations were created.
+The existing private avatar bucket remains private; only current avatars are readable by
+accepted, unblocked friends. `export-user-data` is ACTIVE v35, JWT verification enabled,
+schemaVersion 1.5.0. Receipt: `Build/TestRuns/App-Checks/miyou/production-schema.json`.
+Schema lint reports no Miyou issue; the existing `sync_food_render_jobs` text-to-uuid-array
+initialization warning remains outside this change. Other pending migrations were not applied.
+
 2026-10-13: the same explicit wardrobe authorization was used to selectively apply and
 record `202610130003_expand_mascot_wardrobe_catalog.sql`. Production now has exactly 17
 visible skins, 17 visible accessories and 17 visible backgrounds; the eighteenth accessory

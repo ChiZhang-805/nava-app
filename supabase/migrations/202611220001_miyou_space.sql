@@ -36,6 +36,8 @@ create table public.miyou_messages (
 );
 create index miyou_messages_page on public.miyou_messages(link_id,created_at desc,id desc);
 create index miyou_messages_expiry on public.miyou_messages(expires_at);
+create index miyou_messages_sender_time on public.miyou_messages(sender_id,created_at desc);
+create index miyou_messages_reply on public.miyou_messages(reply_id) where reply_id is not null;
 create table public.miyou_pets (
   link_id uuid primary key references public.miyou_links(id) on delete cascade,
   name text not null check(char_length(name) between 1 and 16),
@@ -89,6 +91,54 @@ create table public.miyou_reports (
   reason text not null check(char_length(reason) between 1 and 300),
   created_at timestamptz not null default now()
 );
+create index miyou_reports_reporter_time on public.miyou_reports(reporter_id,created_at desc);
+create index miyou_reports_message on public.miyou_reports(message_id) where message_id is not null;
+comment on table public.miyou_people is '咪友资料：关联现有 NAVA Auth 账号，不是独立账号系统';
+comment on column public.miyou_people.user_id is '现有 auth.users.id；账号删除时级联清理';
+comment on column public.miyou_people.name is '向咪友展示的昵称，1–24 字';
+comment on column public.miyou_people.invite_code is '一次性好友邀请码，成功使用后轮换';
+comment on column public.miyou_people.invite_expires_at is '邀请码失效时间，默认七天';
+comment on column public.miyou_people.last_request_at is '最近发送好友请求时间，用于服务端限流';
+comment on table public.miyou_links is '两名现有用户的好友关系、屏蔽状态和各自阅读位置';
+comment on column public.miyou_links.user_a is '按 UUID 顺序较小的成员；与 user_b 组成唯一关系';
+comment on column public.miyou_links.user_b is '按 UUID 顺序较大的成员';
+comment on column public.miyou_links.requested_by is '好友邀请发起人，必须是关系成员';
+comment on column public.miyou_links.status is 'pending 待接受 / accepted 已接受 / declined 已忽略';
+comment on column public.miyou_links.blocked_by is '主动屏蔽此关系的成员 UUID 集合';
+comment on column public.miyou_links.read_a is '成员 A 实际读取的最近消息时间边界';
+comment on column public.miyou_links.read_b is '成员 B 实际读取的最近消息时间边界';
+comment on table public.miyou_messages is '咪友文字与表情消息；21 天后不可读并由定时任务清理';
+comment on column public.miyou_messages.link_id is '所属双人会话关系';
+comment on column public.miyou_messages.sender_id is '发送人，RPC 验证必须属于当前关系';
+comment on column public.miyou_messages.request_id is '客户端幂等请求 UUID，重试不会重复发送';
+comment on column public.miyou_messages.body is '消息正文，1–2000 字';
+comment on column public.miyou_messages.reply_id is '同一会话的被引用消息；原消息删除后置空';
+comment on column public.miyou_messages.expires_at is '服务端计算的失效时间，发送后 21 天';
+comment on table public.miyou_pets is '双方确认共养的纳瓦猫；每段好友关系最多一只';
+comment on column public.miyou_pets.link_id is '共养关系主键，关联好友关系';
+comment on column public.miyou_pets.name is '共同设置的小猫名字，1–16 字';
+comment on column public.miyou_pets.requested_by is '共养邀请发起人';
+comment on column public.miyou_pets.accepted_at is '另一位成员接受共养的时间；空值代表待接受';
+comment on column public.miyou_pets.timezone is '用于日节律及成长结算的 IANA 时区';
+comment on table public.miyou_care_catalog is '虚拟照料目录：8 种食物、6 种运动、3 种休息；时长为游戏参数';
+comment on column public.miyou_care_catalog.kind is 'food 喂食 / exercise 运动 / rest 休息';
+comment on column public.miyou_care_catalog.name_zh is '中文展示名称';
+comment on column public.miyou_care_catalog.name_en is '单行英文短名称';
+comment on column public.miyou_care_catalog.duration_minutes is '服务端规定的虚拟照料分钟数，不是动物医学建议';
+comment on column public.miyou_care_catalog.asset is 'APP 中透明图标的资源标识';
+comment on column public.miyou_care_catalog.sort_order is '目录展示顺序';
+comment on table public.miyou_care_events is '持久化照料事件；服务端串行安排并按完成日期和类别计算成长';
+comment on column public.miyou_care_events.link_id is '被照料的小猫所属共养关系';
+comment on column public.miyou_care_events.actor_id is '操作的关系成员';
+comment on column public.miyou_care_events.request_id is '照料操作幂等 UUID';
+comment on column public.miyou_care_events.item_id is '所选食物、运动或休息目录项';
+comment on column public.miyou_care_events.started_at is '服务端记录的开始时间';
+comment on column public.miyou_care_events.ends_at is '按目录时长计算的结束时间';
+comment on table public.miyou_reports is '用户提交的会话举报；客户端不能直接访问';
+comment on column public.miyou_reports.reporter_id is '举报人现有 NAVA 账号 ID';
+comment on column public.miyou_reports.link_id is '被举报会话关系';
+comment on column public.miyou_reports.message_id is '可选的被举报消息；消息到期删除后置空';
+comment on column public.miyou_reports.reason is '举报理由，1–300 字';
 -- RPC-only access. RLS is an additional deny-all boundary, including for tables
 -- whose default privileges in a hosted Supabase project might grant SELECT.
 alter table public.miyou_people enable row level security;
@@ -299,4 +349,32 @@ end;
 $$;
 revoke all on function public.nava_miyou(text,jsonb) from public,anon,authenticated;
 grant execute on function public.nava_miyou(text,jsonb) to authenticated;
+
+-- Paginated account export uses the same existing Auth identity. The whitelist
+-- is server-owned; no caller-supplied SQL or arbitrary table name is executed.
+create function public.nava_miyou_export(kind text, offset_rows integer default 0)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  uid uuid := auth.uid(); scope_sql text; order_column text; row_count bigint; page jsonb;
+begin
+  if uid is null then raise exception 'miyou_auth_required'; end if;
+  if offset_rows is null or offset_rows < 0 then raise exception 'miyou_export_offset_invalid'; end if;
+  case kind
+    when 'miyou_people' then scope_sql := 't.user_id=$1'; order_column := 'user_id';
+    when 'miyou_links' then scope_sql := '$1 in(t.user_a,t.user_b)'; order_column := 'id';
+    when 'miyou_messages' then scope_sql := 't.expires_at>now() and exists(select 1 from public.miyou_links l where l.id=t.link_id and $1 in(l.user_a,l.user_b))'; order_column := 'id';
+    when 'miyou_pets' then scope_sql := 'exists(select 1 from public.miyou_links l where l.id=t.link_id and $1 in(l.user_a,l.user_b))'; order_column := 'link_id';
+    when 'miyou_care_events' then scope_sql := 'exists(select 1 from public.miyou_links l where l.id=t.link_id and $1 in(l.user_a,l.user_b))'; order_column := 'id';
+    when 'miyou_reports' then scope_sql := 't.reporter_id=$1'; order_column := 'id';
+    else raise exception 'miyou_export_kind_invalid';
+  end case;
+  execute format('select count(*) from public.%I t where %s',kind,scope_sql) into row_count using uid;
+  execute format('select coalesce(jsonb_agg(to_jsonb(page)),''[]''::jsonb) from (select t.* from public.%I t where %s order by t.%I offset $2 limit 500) page',kind,scope_sql,order_column)
+    into page using uid,offset_rows;
+  return jsonb_build_object('rows',page,'total',row_count);
+end;
+$$;
+revoke all on function public.nava_miyou_export(text,integer) from public,anon,authenticated;
+grant execute on function public.nava_miyou_export(text,integer) to authenticated;
+comment on function public.nava_miyou_export(text,integer) is '仅导出当前账号所属的咪友数据，按 500 行分页；不导出过期消息';
 commit;
