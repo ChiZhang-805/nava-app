@@ -359,3 +359,5 @@ NAVA 采用「接受好友 → 自动共养纳瓦咪 → 聊天与选择照料�
 ### 系统选图权限边界
 
 `scripts/patch-ios-photo-picker.mjs` 在 npm 安装后修正已锁定的 Camera 7.0.5：PHPicker 直接呈现，使用默认配置和选中项 provider，不依赖整个图库授权或 PHAsset 查询。拍照和显式保存图库仍使用对应系统权限。补丁幂等，依赖版本或目标源码不符合预期时构建失败并要求复核，不静默跳过。依据：[Apple PHPicker 隐私说明](https://developer.apple.com/documentation/PhotoKit/delivering-an-enhanced-privacy-experience-in-your-photos-app)。
+
+参考 Cleaner Calendar 拼图按约 -30° 方向投影采样：卡片宽约 399 像素，中央凹槽宽约 128 像素、深约 30 像素。实现采用宽 32%、深 7.5%，圆角约 5.5%；SVG 按宽高比缩放，中央控制保持 44px 点击区。测量证据在 calendar-readability/reference-boundary.json。
