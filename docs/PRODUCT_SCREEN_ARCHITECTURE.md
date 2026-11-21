@@ -355,3 +355,7 @@ NAVA 采用「接受好友 → 自动共养纳瓦咪 → 聊天与选择照料�
 右上角保留回到本月、月度/季度统计、所选日期综合报告入口。季度跨年导航保持原数据合同。
 
 日期下标点只读取 tasks 中当日未完成的 todo；普通记录、已完成待办、空日期均不标点。读取按日历范围分页，不受待办列表 40 条缓存上限影响。顶边保留水平段，左右为正常圆角，仅中央下凹；中央使用向下/向上尖角，不使用圆点。
+
+### 系统选图权限边界
+
+`scripts/patch-ios-photo-picker.mjs` 在 npm 安装后修正已锁定的 Camera 7.0.5：PHPicker 直接呈现，使用默认配置和选中项 provider，不依赖整个图库授权或 PHAsset 查询。拍照和显式保存图库仍使用对应系统权限。补丁幂等，依赖版本或目标源码不符合预期时构建失败并要求复核，不静默跳过。依据：[Apple PHPicker 隐私说明](https://developer.apple.com/documentation/PhotoKit/delivering-an-enhanced-privacy-experience-in-your-photos-app)。

@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/patch-ios-photo-picker.mjs",
     "miyou:nearby:test": "node scripts/verify-miyou-nearby.mjs",
     "miyou:db:test": "node scripts/verify-miyou-db.mjs",
     "miyou:visual": "node scripts/verify-miyou-ui.mjs",
