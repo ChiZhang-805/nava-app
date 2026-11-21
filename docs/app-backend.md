@@ -741,3 +741,24 @@ Edge Function 会校验对象路径归属，只生成十分钟签名 URL；客�
 - Supabase production/staging 环境区分。
 - 正式算法服务 URL、鉴权 key、返回 schema。
 - iOS/Watch 真机编译所需 Mac、Xcode、Apple Developer Team。
+
+## 咪友空间后端合同（待部署）
+
+新增、尚未应用的迁移：`202611220001_miyou_space.sql` 与 `202611220002_miyou_retention.sql`。
+前者创建 `miyou_people/links/messages/pets/care_catalog/care_events/reports` 七张表及 `nava_miyou(action,payload)` RPC。
+所有表启用 RLS 并撤销客户端直接访问；RPC 固定空 search_path、按 auth.uid() 验证成员，客户端没有 service-role。
+好友和共同宠物分别需要对方接受；邀请码一次使用后轮换。消息有幂等 UUID、跨会话发送限流、同会话引用和分页；
+宠物照料由服务端目录决定时长，事务锁拒绝重叠操作，成长按完成日期/类别汇总。客户端不上传成长值或结束时间。
+读取只标记实际取回的消息边界，避免把拉取后新到的消息误读。屏蔽和举报有认证与关系边界。
+头像仅通过 RPC 返回本人或已接受、未屏蔽好友的头像引用，不返回健康资料。新增 storage SELECT
+策略只允许该关系读取 profiles.avatar_url 当前指向的对象；旧照片和其他媒体桶仍不可读。
+profile-avatars 保持私有，前端签发五分钟 URL 并刷新，失败使用固定动物头像。屏蔽后不再发放
+新链接，既有签名链接按五分钟期限过期。没有将苹果账号头像当作可用字段。
+后者安装/复用 pg_cron，每小时清理过期消息；RPC 即时过滤过期记录，不依赖任务准点执行。
+删除 auth.users 会级联删除该账号涉及的关系、消息及共同宠物，不会保留无人归属的私聊。
+
+`npm run miyou:db:test` 用项目 devDependency PGlite 执行实际迁移及认证角色测试；
+`npm run miyou:visual` 通过两个隔离浏览器会话连接同一隔离 PostgreSQL，验证双人邀请/接受、互聊引用、
+丢失发送回执后的幂等重试、共同养猫、刷新持久化和五种屏宽的双引擎界面。后者不检验真实生产 JWT、
+PostgREST 部署、原生麦克风、双真机同步或 cron 调度器。证据在 `Build/TestRuns/App-Checks/miyou`。
+生产迁移、生产端到端验证和新版 TestFlight 均需继续，不可因本地测试通过宣称正式上线。

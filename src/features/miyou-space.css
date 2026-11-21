@@ -1,0 +1,109 @@
+.miyou-space {
+  --mi-ink: var(--ink, #26334e);
+  --mi-soft: #52667b;
+  --mi-line: #b8cede66;
+  --mi-surface: #f7fbffe8;
+  --mi-accent: #34789a;
+  display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden;
+  color:var(--mi-ink); padding:0 16px max(8px, env(safe-area-inset-bottom)); gap:8px;
+}
+.miyou-space *, .miyou-sheet * { box-sizing:border-box; }
+.miyou-space button,.miyou-sheet button { font:inherit; color:inherit; cursor:pointer; }
+.miyou-space button:disabled,.miyou-sheet button:disabled { opacity:.5; cursor:default; }
+.miyou-space button:active:not(:disabled),.miyou-sheet button:active:not(:disabled) { filter:brightness(.94); }
+.miyou-space :focus-visible,.miyou-sheet :focus-visible { outline:2px solid #34789a; outline-offset:3px; }
+.miyou-header { display:flex; align-items:center; gap:10px; flex-shrink:0; min-height:56px; }
+.miyou-header h1 { flex:1; font-size:19px; line-height:1.3; margin:0; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.miyou-icon { display:inline-grid; flex:0 0 44px; width:44px; height:44px; place-items:center; padding:0; border:0; background:transparent; border-radius:0; }
+.miyou-chat-title { display:flex; flex:1; min-width:0; align-items:center; gap:10px; }
+.miyou-chat-title h1 { text-align:start; }
+.miyou-avatar { display:inline-grid; place-items:center; flex:0 0 40px; width:40px; height:40px; border-radius:50%; background:linear-gradient(145deg,#e1edf8,#d5d9f5); color:#33476a; font-weight:650; font-size:17px; border:1px solid #ffffffb3; }
+.miyou-avatar { overflow:hidden; }
+.miyou-avatar img { display:block; width:100%; height:100%; object-fit:cover; }
+.miyou-pair { display:flex; align-items:center; padding-right:2px; }
+.miyou-pair .miyou-avatar { width:40px; height:40px; flex-basis:40px; border:2px solid #fff; background:#f8fafc; }
+.miyou-pair .miyou-avatar+.miyou-avatar { margin-left:-10px; }
+.miyou-scroll { overflow-y:auto; overscroll-behavior:contain; min-height:0; flex:1; }
+.miyou-search { display:flex; align-items:center; gap:8px; background:#f6faffb8; padding:0 12px; border-radius:16px; }
+.miyou-space input,.miyou-space textarea,.miyou-sheet input,.miyou-sheet textarea { min-height:44px; min-width:0; width:100%; border:1px solid #bed2e4; border-radius:14px; background:#f7fbff; color:#26334e; padding:10px 12px; font:inherit; font-size:16px; }
+.miyou-search input { border:0; background:transparent; padding-inline:0; }
+.miyou-friend { display:flex; gap:12px; align-items:center; width:100%; background:transparent; border:0; padding:18px 0; text-align:start; }
+.miyou-friend .miyou-avatar { width:54px; height:54px; flex-basis:54px; font-size:22px; }
+.miyou-friend>div { min-width:0; flex:1; }
+.miyou-friend strong { font-size:17px; }
+.miyou-friend p { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; color:var(--mi-soft); margin:6px 0 0; }
+.miyou-friend aside { display:grid; justify-items:end; align-self:stretch; gap:5px; }
+.miyou-friend time { font-size:12px; color:var(--mi-soft); }
+.miyou-friend aside b { border-radius:20px; padding:2px 6px; background:#397896; color:white; font-size:11px; }
+.miyou-friend-row+.miyou-friend-row { border-top:1px solid var(--mi-line); }
+.miyou-welcome,.miyou-empty { text-align:center; padding:28px 14px; overflow-y:auto; }
+.miyou-welcome { display:grid; justify-items:center; gap:14px; }
+.miyou-welcome>img { width:min(65%,230px); height:200px; object-fit:contain; }
+.miyou-welcome h2,.miyou-empty h2 { font-size:20px; margin:10px 0; }
+.miyou-welcome p,.miyou-empty p { color:var(--mi-soft); font-size:15px; line-height:1.6; }
+.miyou-welcome label { width:100%; display:grid; gap:8px; text-align:start; }
+.miyou-primary { min-height:46px; border:1px solid #fff; border-radius:16px; padding:10px 20px; background:linear-gradient(110deg,#d5dcfb,#bae7ec); font-weight:650!important; }
+.miyou-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+.miyou-actions button,.miyou-empty>button,.miyou-adopt>button { min-height:44px; border:1px solid #c6d9e7; border-radius:14px; padding:8px 16px; background:#f8fbffe0; }
+.miyou-error { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; margin:0; border-radius:12px; background:#fff1ee; color:#853e30; font-size:13px; }
+.miyou-error button { flex-shrink:0; min-height:44px; border:0; background:transparent; }
+.miyou-notice { font-size:13px; margin:0; text-align:center; }
+.miyou-chat-container { display:flex; flex-direction:column; flex:1; min-height:0; }
+.miyou-chat-container[hidden] { display:none; }
+.miyou-pet-banner { display:flex; flex-shrink:0; align-items:center; gap:10px; width:100%; padding:4px 10px; border:1px solid #ffffffc4; border-radius:20px; background:#ecf8fcaa; text-align:start; }
+.miyou-pet-banner>img { height:52px; width:52px; object-fit:contain; }
+.miyou-pet-banner>span { flex:1; min-width:0; }
+.miyou-pet-banner strong { font-size:14px; }
+.miyou-pet-banner small { display:block; font-size:12px; margin-top:3px; color:var(--mi-soft); }
+.miyou-messages { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; overflow-anchor:none; padding:16px 0; }
+.miyou-time { text-align:center; font-size:12px; color:var(--mi-soft); padding:12px 0; margin:0; }
+.miyou-message { display:flex; align-items:start; gap:9px; margin:12px 0; }
+.miyou-message[data-own="true"] { flex-direction:row-reverse; }
+.miyou-message-content { max-width:calc(100% - 66px); min-width:0; display:flex; flex-direction:column; align-items:flex-start; }
+.miyou-message[data-own="true"] .miyou-message-content { align-items:flex-end; }
+.miyou-bubble { border:1px solid #ffffffa8; border-radius:5px 18px 18px; background:#f6fbfff2; padding:11px 14px; text-align:start; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.6; font-size:16px!important; max-width:100%; min-height:44px; }
+.miyou-message[data-own="true"] .miyou-bubble { background:linear-gradient(130deg,#d8def9,#c9e8f2); border-radius:18px 5px 18px 18px; }
+.miyou-message blockquote { background:#dce6efad; color:#536477; border-radius:10px; padding:8px 11px; font-size:12px; margin:5px 0 0; overflow-wrap:anywhere; max-width:100%; }
+.miyou-earlier { display:block; margin:auto; border:0; background:transparent; min-height:44px; font-size:13px!important; }
+.miyou-compose-area { flex-shrink:0; padding-top:6px; }
+.miyou-quick-replies { display:flex; gap:8px; overflow:auto; scrollbar-width:none; padding-bottom:10px; }
+.miyou-quick-replies button { flex-shrink:0; min-height:36px; border:1px solid #ffffffb0; border-radius:12px; background:#f6fbffc9; padding:6px 12px; font-size:13px; }
+.miyou-composer { display:flex; align-items:center; gap:0; padding:4px; border:1px solid #fff; border-radius:18px; background:#f7fbfff0; }
+.miyou-composer textarea { flex:1; border:0; border-radius:0; background:transparent; resize:none; max-height:110px; padding:11px 2px; }
+.miyou-send { color:#27688b!important; }
+.miyou-reply { display:flex; align-items:center; padding-inline:8px; font-size:12px; color:var(--mi-soft); }
+.miyou-reply>span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.miyou-emoji { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); max-height:230px; overflow-y:auto; gap:5px; padding:12px 0 0; }
+.miyou-emoji button { min-height:44px; border:0; background:transparent; font-size:27px; }
+.miyou-more { display:flex; padding:20px 10px; gap:25px; }
+.miyou-more button { display:grid; justify-items:center; gap:10px; border:0; background:transparent; min-height:60px; font-size:13px; }
+.miyou-sheet { display:grid; gap:16px; color:#26334e; padding:0 6px 16px; }
+.miyou-sheet h2 { margin:0; font-size:22px; }
+.miyou-sheet p { font-size:14px; line-height:1.6; margin:0; }
+.miyou-sheet form,.miyou-sheet label { display:grid; gap:12px; }
+.miyou-sheet>button { display:flex; align-items:center; gap:12px; min-height:48px; padding:10px; background:#ffffff90; border:1px solid #fff; border-radius:14px; }
+.miyou-code { font-size:14px; line-height:1.7; font-family:ui-monospace,monospace; overflow-wrap:anywhere; padding:14px; background:#e3f1f9; border-radius:14px; user-select:all; -webkit-user-select:all; -webkit-touch-callout:default; }
+.miyou-pet-room { text-align:center; position:relative; }
+.miyou-pet-top { display:flex; align-items:center; justify-content:space-between; padding:14px 10px 0; text-align:start; }
+.miyou-pet-top small { display:block; font-size:13px; color:var(--mi-soft); }
+.miyou-pet-top strong { display:block; font-size:36px; line-height:1.3; font-weight:650; }
+.miyou-pet-top strong span { font-size:13px; margin-left:5px; font-weight:400; }
+.miyou-pet-stage { position:relative; isolation:isolate; min-height:245px; height:clamp(245px,35dvh,330px); }
+.miyou-pet-stage::before { content:''; position:absolute; inset:0 -12px; z-index:-2; background:radial-gradient(ellipse at 50% 50%,#ffffffcc,transparent 65%); }
+.miyou-pet-platform { position:absolute; bottom:12px; left:10%; width:80%; height:54px; border-radius:50%; background:linear-gradient(#fbfeffdd,#c5e6f4cc); border:1px solid #fff; z-index:-1; }
+.miyou-pet-cat { width:85%; height:90%; object-fit:contain; position:absolute; bottom:12px; left:7.5%; }
+.miyou-star { position:absolute; color:#7baec9; font-size:20px; }
+.star-one { left:9%; top:30%; }.star-two { right:6%; top:19%; font-size:30px; }.star-three { right:15%; bottom:26%; font-size:14px; }
+.miyou-active-item { position:absolute; right:0; bottom:12px; width:92px; height:92px; object-fit:contain; }
+.miyou-pet-name { display:inline-flex; gap:9px; align-items:center; justify-content:center; min-height:44px; border:0; background:transparent; font-size:20px!important; font-weight:650!important; }
+.miyou-pet-growth { margin:0 0 7px; font-size:12px; color:var(--mi-soft); }
+.miyou-care-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:8px 0 18px; }
+.miyou-care-actions button { display:grid; justify-items:center; gap:4px; background:transparent; border:0; }
+.miyou-care-actions img { width:86px; height:76px; object-fit:contain; }.miyou-care-actions strong { font-size:14px; }
+.miyou-adopt { display:grid; gap:12px; padding:0 12px 24px; }.miyou-adopt h2 { font-size:20px; margin:6px 0; }.miyou-adopt p { line-height:1.6; font-size:14px; margin:0; color:var(--mi-soft); }
+.miyou-catalog { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }.miyou-catalog button { display:grid; justify-items:center; gap:7px; padding:8px 2px 12px; border:1px solid #ffffffd9; border-radius:18px; background:#eaf5fa9c; }.miyou-catalog img { width:100%; height:88px; object-fit:contain; }.miyou-catalog strong { font-size:14px; white-space:nowrap; }.miyou-catalog small { font-size:12px; color:#52667b; }
+@media(max-width:350px) { .miyou-space { padding-inline:10px; }.miyou-chat-title .miyou-avatar { display:none; }.miyou-care-actions img { width:70px; }.miyou-composer .miyou-icon { flex-basis:40px; width:40px; }.miyou-catalog { gap:6px; } }
+html[data-keyboard-open="true"] :is(.miyou-quick-replies,.miyou-pet-banner) { display:none; }
+@media(max-height:600px) { .miyou-quick-replies { display:none; }.miyou-emoji { max-height:160px; } }
+
+@media(max-height:650px) { .miyou-pet-stage { min-height:200px; height:200px; } }

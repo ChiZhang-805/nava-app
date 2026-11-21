@@ -177,4 +177,7 @@ Invoke-Npm -Arguments @("run", "welcome:visual")
 Write-Host "36. Journal companion state transitions and shape bounds"
 Invoke-Npm -Arguments @("run", "journal:motion:test")
 Invoke-Npm -Arguments @("run", "journal:motion:visual")
+Write-Host "37. Miyou account-bound conversations and cooperative care"
+Invoke-Npm -Arguments @("run", "miyou:db:test")
+Invoke-Npm -Arguments @("run", "miyou:visual")
 Write-Host "Verification completed."

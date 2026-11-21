@@ -37,6 +37,17 @@ try {
       timezoneId: "Asia/Shanghai",
       userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
     });
+    // This test owns local demo fixtures; an unrelated production socket must
+    // not make geometry acceptance depend on external DNS or connectivity.
+    await context.routeWebSocket('**/realtime/v1/websocket*',socket=>{
+      socket.onMessage(raw=>{
+        const message=JSON.parse(String(raw));
+        if(['phx_join','phx_leave','heartbeat'].includes(message.event))socket.send(JSON.stringify({
+          topic:message.topic,event:'phx_reply',ref:message.ref,
+          payload:{status:'ok',response:{postgres_changes:[]}},
+        }));
+      });
+    });
     await context.addInitScript(() => {
       const now = new Date();
       const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;

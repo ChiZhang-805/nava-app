@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "miyou:db:test": "node scripts/verify-miyou-db.mjs",
+    "miyou:visual": "node scripts/verify-miyou-ui.mjs",
     "dev": "node scripts/run-vite-with-project-env.mjs --host 0.0.0.0",
     "build": "tsc -b && node scripts/run-vite-with-project-env.mjs build && node scripts/prepare-sites-build.mjs",
     "build:pages": "tsc -b && node scripts/run-vite-with-project-env.mjs build && node scripts/prepare-github-pages.mjs",
@@ -179,6 +181,7 @@
     "translation-resilience": "0.3.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.61.1",
     "@types/nodemailer": "^7.0.11",

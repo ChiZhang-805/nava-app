@@ -40,6 +40,7 @@
         "npm:@capacitor/local-notifications@^7.0.7",
         "npm:@capacitor/push-notifications@^7.0.7",
         "npm:@capacitor/share@7.0.4",
+        "npm:@electric-sql/pglite@0.5.8",
         "npm:@eslint/js@^9.17.0",
         "npm:@playwright/test@^1.61.1",
         "npm:@supabase/supabase-js@^2.52.1",
