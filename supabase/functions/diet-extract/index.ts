@@ -8,6 +8,7 @@ import {
 } from "../_shared/http.ts";
 import { assertOwnedStoragePath } from "../_shared/storage-ownership.ts";
 import { dietRecognitionPrompt, dietRecognitionRequest } from "../_shared/diet-prompt.ts";
+import { loadFoodReferenceContext } from "../_shared/food-reference-context.ts";
 
 type FoodItem = {
   name: string;
@@ -48,6 +49,7 @@ Deno.serve(async (req) => {
       lang,
       meal: stringValue(body.meal),
       date: stringValue(body.date),
+      referenceContext: await loadFoodReferenceContext(userClient),
     });
     return jsonResponse(providerResult);
   } catch (error) {
@@ -55,7 +57,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function callProvider(input: { imageUrl: string; imagePath?: string; lang: string; meal?: string; date?: string }) {
+async function callProvider(input: { imageUrl: string; imagePath?: string; lang: string; meal?: string; date?: string; referenceContext: string }) {
   const endpoint = Deno.env.get("NAVA_DIET_EXTRACT_URL");
   const apiKey = Deno.env.get("NAVA_DIET_EXTRACT_KEY");
 
@@ -68,7 +70,7 @@ async function callProvider(input: { imageUrl: string; imagePath?: string; lang:
       },
       body: JSON.stringify({
         ...input,
-        prompt: dietRecognitionPrompt(input.lang, input.meal),
+        prompt: dietRecognitionPrompt(input.lang, input.meal) + input.referenceContext,
         response_schema: "nava.diet.v2",
       }),
       signal: AbortSignal.timeout(60_000),
@@ -102,6 +104,7 @@ async function callVisionProvider(input: {
   endpoint: string;
   apiKey: string;
   model: string;
+  referenceContext: string;
 }) {
   const response = await fetch(input.endpoint, {
     method: "POST",
@@ -115,7 +118,7 @@ async function callVisionProvider(input: {
       messages: [
         {
           role: "system",
-          content: dietRecognitionPrompt(input.lang, input.meal),
+          content: dietRecognitionPrompt(input.lang, input.meal) + input.referenceContext,
         },
         {
           role: "user",

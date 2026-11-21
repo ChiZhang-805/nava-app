@@ -1,5 +1,44 @@
 # NAVA AI knowledge harness
 
+## Food-photo dish identity and composition lookup
+
+Both `journal-assistant` (food category) and `diet-extract` inject the same server-owned
+prepared-dish contract. Independently served dishes are separate items; a composed
+steak plate, pizza, cabbage stir-fry or rib soup stays one dish. Roast chicken and
+fried drumsticks retain cooking methods. A brand requires user or packaging evidence.
+Ingredients remain nutrition evidence, not a replacement for the dish name. Soup
+solids, consumed broth, edible meat excluding bones, oil and personal share inform
+estimates. A whole hotpot table is never automatically one person's intake.
+
+The production `food_composition_references` table contains 5,431 nutrient-bearing
+entries from [USDA FNDDS 2021–2023, released 2024-10-31](https://fdc.nal.usda.gov/download-datasets/).
+The official archive has 5,432 entries; one without nutrient values is excluded.
+Archive: `https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_survey_food_json_2024-10-31.zip`.
+SHA-256: `dfb06ae7ddc397ccd570b91c14b75438ab2ba39f64f22d321f61d4a52a77f3eb`.
+USDA data are public domain. See [data documentation](https://fdc.nal.usda.gov/data-documentation/).
+
+Columns preserve FDC identity, description, release, source URL, calories/protein/
+carbohydrate/fat **per 100 g**, and published portion descriptions/gram weights.
+Missing nutrients remain NULL. This is general US food composition, not exact
+Chinese restaurant recipes or McDonald's China specifications. Mixed Chinese dishes
+use appropriate components with portion and oil assumptions; values remain estimates.
+
+`nava_food_reference_search` uses indexed English full-text matching, up to 12 queries,
+at most 40 results, and a default set of 32 common cooked foods/components. The shared
+loader maps known Chinese food terms to English and submits current user text, never
+the client system prompt. It retrieves 32 rows before the model call with a 2-second
+deadline; retrieval errors leave the vision estimate available. Photos without textual
+food clues receive the general reference set. This does not yet do a second model
+round-trip to search every newly recognized dish. The existing text-chat knowledge
+tools retain their separate common-serving/optional live USDA lookup.
+
+Authenticated clients can read only; anonymous access and client mutation are denied.
+No account/health rows are stored in this table. Prepare the downloaded zip using
+`python scripts/prepare-food-references.py <zip> <output.sql>`; the selective
+`node scripts/deploy-food-references.mjs --apply` deploys only migration 202611220005
+and the prepared cache import. Its plan mode is read-only. No new accounts are needed.
+Local receipt: `Build/TestRuns/App-Checks/food-reference/receipt.json`.
+
 ## App AI connection audit
 
 | User entry | Model boundary and persistence | Behavior at the boundary |
