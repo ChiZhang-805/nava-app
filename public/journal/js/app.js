@@ -72,7 +72,7 @@ __fluffyModules["app.js"] = (() => {
     let timeRange = null, formLayout = null, review = null, entryMenu = null;
     let lastEntryAction = "";
     let lastPreviewActivityState = "";
-    let gesture, board, toastTimer, homeBubbleTimer, cameraVideo = null, sheetReturn = null, wave = Array(72).fill(0), lastTimerText = "", lastUI = "", lastFocusSave = 0;
+    let gesture, board, toastTimer, homeBubbleTimer, sheetReturn = null, wave = Array(72).fill(0), lastTimerText = "", lastUI = "", lastFocusSave = 0;
     let sheetDrag = null, sheetDismissTimer = null, sheetClickBlockedUntil = 0;
     /**
      * 输入：文字、error。
@@ -179,7 +179,7 @@ __fluffyModules["app.js"] = (() => {
     /**
      * 输入：restoreFocus。
      * 输出：无。
-     * 功能：关闭面板、释放摄像头并恢复页面可访问性。
+     * 功能：关闭面板并恢复页面可访问性。
      */
     function closeSheet(restoreFocus = true) {
         clearTimeout(sheetDismissTimer);
@@ -189,13 +189,9 @@ __fluffyModules["app.js"] = (() => {
         $("sheet").style.animation = "";
         delete $("sheet").dataset.dragging;
         delete $("sheet-layer").dataset.closing;
-        const library = $("photo-library");
-        if (library && $("sheet-body").contains(library)) $("screen").append(library);
         const callback = state.sheetClose;
         state.sheetClose = null;
         callback?.();
-        photo.stopCamera();
-        cameraVideo = null;
         $("sheet-layer").hidden = true;
         for (const child of $("screen").children)
             child.inert = false;
@@ -256,7 +252,7 @@ __fluffyModules["app.js"] = (() => {
      */
     function navigate(scene, options = {}) {
         if(['home','history','tasks','profile'].includes(scene)) {
-            timer.pause();persistFocus();cancelWork(false);photo.stopCamera();
+            timer.pause();persistFocus();cancelWork(false);
             window.NavaJournal.call('exit',{destination:scene}).catch(()=>{});return;
         }
         document.documentElement.dataset.recordModule = state.category;
@@ -475,7 +471,8 @@ __fluffyModules["app.js"] = (() => {
             for (const b of timeRange.triggers)
                 b.setAttribute("aria-label", Locale.language() === "en" ? `${Locale.t(b.dataset.key === "bedtime" ? "入睡时间" : "醒来时间")} ${Locale.t(Number(b.dataset.part) === 0 ? "小时" : "分钟选择")}` : `${b.dataset.key === "bedtime" ? "入睡" : "醒来"}${Number(b.dataset.part) === 0 ? "小时" : "分钟"}`);
         }
-        $("entry-form").querySelectorAll(".photo-tool span").forEach((n, i) => n.textContent = Locale.t(i === 0 ? "拍照" : "选择照片"));
+        const libraryAction = $("entry-photo-library");
+        if (libraryAction) libraryAction.textContent = Locale.t("从相册选择照片", "Choose from library");
         const placeholder = $("photo-preview")?.querySelector(".photo-empty span");
         if (placeholder)
             placeholder.textContent = Locale.t("选择照片");
@@ -930,14 +927,21 @@ __fluffyModules["app.js"] = (() => {
             preview.tabIndex = 0;
             preview.onclick = event => {
                 if (event.target.closest(".photo-remove")) return;
-                void openCamera();
+                openEntryCamera();
             };
             preview.onkeydown = event => {
                 if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
-                void openCamera();
+                openEntryCamera();
             };
             form.append(preview);
+            if (window.NavaJournal.initial.nativePhotos) {
+                const libraryAction = el("button", "photo-tool", Locale.t("从相册选择照片", "Choose from library"));
+                libraryAction.type = "button";
+                libraryAction.id = "entry-photo-library";
+                libraryAction.onclick = () => void pickNativeEntryPhoto("library");
+                form.append(libraryAction);
+            }
             if (state.category !== "food") {
                 const analyze = el("button", "analyze-photo");
                 analyze.type = "button";
@@ -1528,7 +1532,7 @@ __fluffyModules["app.js"] = (() => {
     /**
      * 输入：无。
      * 输出：Promise<void>。
-     * 功能：请求相机预览，支持明确拍摄/取消；离开立即停止所有轨道。
+     * 功能：调用系统相机或相册，并保护原有草稿免受迟到的回调影响。
      */
     async function pickNativeEntryPhoto(source) {
         const read = ++state.photoRead, category = state.category, date = state.recordDate, editingId = state.editingId;
@@ -1539,69 +1543,17 @@ __fluffyModules["app.js"] = (() => {
             const file = await window.NavaJournal.call('photo', {source, facing: category === 'face' ? 'user' : 'environment'});
             if (!file || !current()) return;
             const image = await photo.readFile(file);
-            if (image && current()) { closeSheet(false); await acceptPhoto(image); }
+            if (image && current()) { cancelWork(false); await acceptPhoto(image); }
         } catch (error) { if (current() && error.name !== 'AbortError') toast(Locale.t('无法打开照片，请检查权限后重试。', 'Unable to open the photo. Check access and try again.')); }
     }
-    async function openCamera() {
-        const id = state.category;
-        cancelWork(false);
-        const serial = state.serial;
-        let status;
-        let capture;
-        let useSystemCamera = false;
-        showSheet("拍一张照片", b => {
-            cameraVideo = el("video", "camera-video");
-            cameraVideo.autoplay = true;
-            cameraVideo.muted = true;
-            cameraVideo.playsInline = true;
-            b.append(cameraVideo);
-            status = el("p", "camera-status", Locale.t("正在等待摄像头…"));
-            b.append(status);
-            const row = el("div", "sheet-buttons");
-            capture = el("button", "solid", Locale.t("拍下这一张"));
-            capture.disabled = true;
-            const pick = el("button", "", Locale.t("选择照片"));
-            b.append($("photo-library"));
-            capture.onclick = () => {
-                if (useSystemCamera) { void pickNativeEntryPhoto('camera'); return; }
-                try {
-                    if (serial !== state.serial || id !== state.category || animation.scene !== "entry") return;
-                    const image = photo.capture(cameraVideo);
-                    closeSheet();
-                    acceptPhoto(image);
-                }
-                catch (e) {
-                    closeSheet(false);
-                    bubble(e, true);
-                }
-            };
-            pick.onclick = () => {
-                // Open while user activation and the modal's focus are intact.
-                // Closing the modal first can make WebKit cancel the picker.
-                void selectLibrary();
-            };
-            row.append(pick, capture);
-            b.append(row);
-        }, () => photo.stopCamera());
-        try {
-            const started = await photo.openCamera(cameraVideo, id === "face");
-            if (started && id === state.category) {
-                status.textContent = "";
-                capture.disabled = false;
-            }
+    function openEntryCamera() {
+        if (window.NavaJournal.initial.nativePhotos) {
+            void pickNativeEntryPhoto("camera");
+            return;
         }
-        catch (e) {
-            if (!$("sheet-layer").hidden && serial === state.serial && id === state.category) {
-                useSystemCamera = window.NavaJournal.initial.nativePhotos === true;
-                capture.disabled = !useSystemCamera;
-                if (useSystemCamera) capture.textContent = Locale.t("拍一张照片");
-                status.textContent = Locale.language() === "en" ? "Camera unavailable. You can still choose a photo." : "摄像头暂不可用，仍可选择照片。";
-            }
-        }
-    }
-    async function selectLibrary(){
-        if(!window.NavaJournal.initial.nativePhotos){$("photo-library").click();return;}
-        await pickNativeEntryPhoto('library');
+        const picker = $("photo-library");
+        picker.setAttribute("capture", state.category === "face" ? "user" : "environment");
+        picker.click();
     }
     /**
      * 输入：无，读取当前任务和页面上下文。
@@ -1673,7 +1625,6 @@ __fluffyModules["app.js"] = (() => {
     async function selectPhotoFile(event) {
         const input = event.target, file = input.files?.[0];
         if (!file) return;
-        closeSheet(false);
         cancelWork(false);
         const read = ++state.photoRead, serial = state.serial, id = state.category;
         try {
@@ -2448,7 +2399,7 @@ __fluffyModules["app.js"] = (() => {
         if(state.focusRecord && window.NavaJournal.initial.category!=='focus')openCategory(window.NavaJournal.initial.category);
         if(window.NavaJournal.initial.forceGuide && !state.focusRecord)newEntry(window.NavaJournal.initial.category);
         window.NavaJournal.notify=toast;
-        window.NavaJournal.interrupt=()=>{timer.pause();cancelWork(false);photo.stopCamera();persistFocus();renderFocus();};
+        window.NavaJournal.interrupt=()=>{timer.pause();cancelWork(false);persistFocus();renderFocus();};
         window.NavaJournal.call('ready').catch(()=>{});
         import('./cold-start-guide.js?v=20261010-guide-v11').then(({installColdStartGuide}) => installColdStartGuide(window.NavaJournal)).catch(() => {});
         $("confirm-entry").disabled = false;
@@ -2703,7 +2654,7 @@ __fluffyModules["app.js"] = (() => {
         window.addEventListener("resize", resizePhone);
         window.addEventListener("pagehide", () => {
             cancelWork(false);
-            photo.stopCamera();
+
             persistFocus();
             closeSettings(false);
             api.clear();
@@ -2717,7 +2668,6 @@ __fluffyModules["app.js"] = (() => {
                 // 已松手的听写收尾/文字请求可有限完成；只取消仍在采集的输入，不留假思考气泡。
                 if (["listening","requesting"].includes(state.phase)) cancelWork(true);
                 else if (state.phase === "thinking") state.workflowTrace?.mark("background");
-                photo.stopCamera();
                 persistFocus();
             }
             else {

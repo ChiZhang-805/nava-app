@@ -338,7 +338,7 @@
   background: var(--skin-surface-strong);
   box-shadow: var(--skin-shadow);
 }
-.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.today-todo-date-overlay > section, .profile-security-sheet, .weekly-detail-dialog > article, .module-modal-card) {
+.phone-frame[data-app-skin]:not([data-app-skin="glacier-mist"]) :is(.today-todo-date-overlay > section, .profile-security-sheet, .module-modal-card) {
   border-color: var(--skin-line);
   color: var(--skin-ink);
   background: var(--skin-surface-strong);

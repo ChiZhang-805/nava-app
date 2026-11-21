@@ -110,45 +110,71 @@ export async function createDnbWeeklyPoster(report: DnbWeeklyReport, locale: "zh
   if (height > 4096) throw new Error(locale === "zh" ? "摘要过长，请关闭摘要后生成。" : "Insights are too long. Hide them and retry.");
   canvas.height = height;
   const gradient = context.createLinearGradient(0, 0, 1080, canvas.height);
-  gradient.addColorStop(0, "#effbff");
-  gradient.addColorStop(1, "#b8e8f6");
+  gradient.addColorStop(0, "#e9e6fa");
+  gradient.addColorStop(0.52, "#eff7ff");
+  gradient.addColorStop(1, "#b8e7e8");
   context.fillStyle = gradient;
   context.fillRect(0, 0, 1080, canvas.height);
-  context.fillStyle = "rgba(255,255,255,.78)";
-  roundRect(context, 90, 100, 900, canvas.height - 230, 48);
+  roundRect(context, 60, 60, 960, canvas.height - 120, 54);
+  context.fillStyle = "rgba(255,255,255,.62)";
   context.fill();
-  context.fillStyle = "#0a5778";
-  context.font = "700 38px system-ui, sans-serif";
-  context.fillText("NAVA · WEEKLY RHYTHM", 150, 190);
+  context.strokeStyle = "#ffffff";
+  context.lineWidth = 3;
+  context.stroke();
+
+  context.fillStyle = "#47667d";
+  context.font = "700 29px system-ui, sans-serif";
+  context.fillText("NAVA", 126, 164);
   if (report.modelVersion?.includes("demo")) {
-    context.font = "700 26px system-ui, sans-serif";
-    context.fillText("演示数据 / Demo", 150, 295);
+    context.textAlign = "right";
+    context.fillText(locale === "zh" ? "演示数据" : "Demo data", 954, 164);
+    context.textAlign = "left";
   }
-  context.fillStyle = "#6b8793";
-  context.font = "500 28px system-ui, sans-serif";
-  if (privacy.includeDates) context.fillText(periodLabel, 150, 245);
-  context.fillStyle = "#0b3347";
-  context.font = `${locale === "zh" ? 76 : 68}px system-ui, sans-serif`;
-  context.fillText(locale === "zh" ? "我的节律周记" : "My rhythm journal", 150, 385);
-  context.fillStyle = "#1780a9";
-  context.font = "800 190px system-ui, sans-serif";
-  context.fillText(String(Math.round(score)), 145, 650);
-  context.font = "700 32px system-ui, sans-serif";
-  context.fillText(locale === "zh" ? "本周稳定度" : "WEEKLY STABILITY", 155, 710);
-  context.fillStyle = "#244e60";
+  context.fillStyle = "#233858";
+  context.font = "750 65px system-ui, sans-serif";
+  context.fillText(locale === "zh" ? "我的节律周记" : "My weekly rhythm", 122, 263, 820);
+  if (privacy.includeDates) {
+    context.fillStyle = "#47667d";
+    context.font = "500 31px system-ui, sans-serif";
+    context.fillText(periodLabel, 125, 324, 820);
+  }
+
+  const artwork = new Image();
+  artwork.src = new URL("../assets/mascot/nava-run-v1.webp", import.meta.url).href;
+  try {
+    await artwork.decode();
+    const width = 345;
+    const height = width * artwork.naturalHeight / artwork.naturalWidth;
+    context.drawImage(artwork, 593, 574 - height / 2, width, height);
+  } catch {
+    // The share image can still be created if the local illustration fails.
+  }
+  context.fillStyle = "#126b8d";
+  context.font = "800 169px system-ui, sans-serif";
+  const scoreText = String(Math.round(score));
+  const scoreWidth = context.measureText(scoreText).width;
+  context.fillText(scoreText, 113, 630);
+  context.font = "650 39px system-ui, sans-serif";
+  context.fillText("/ 100", 131 + scoreWidth, 627);
+  context.fillStyle = "#233858";
   context.font = "650 34px system-ui, sans-serif";
-  const keyword = report.evidenceLevel === "supported"
-    ? (locale === "zh" ? "关键词：值得关注的转变" : "Keyword: supported change")
-    : report.evidenceLevel === "candidate"
-      ? (locale === "zh" ? "关键词：继续观察" : "Keyword: keep observing")
-      : (locale === "zh" ? "关键词：证据有限" : "Keyword: limited evidence");
-  if (privacy.includeInsights && privacy.includeDates) context.fillText(keyword, 150, 820);
-  context.fillStyle = "#537381";
-  context.font = "500 28px system-ui, sans-serif";
-  summaryLines.forEach((line, index) => context.fillText(line, 150, 900 + index * 44));
-  context.fillStyle = "#78909a";
-  context.font = "500 21px system-ui, sans-serif";
-  canvasTextLines(context, locale === "zh" ? "研究性健康状态提示，不构成医疗诊断。" : "Research health-state signal; not a medical diagnosis.", 770).forEach((line, index) => context.fillText(line, 150, canvas.height - 210 + index * 32));
+  context.fillText(locale === "zh" ? "DNB 节律稳定度" : "DNB rhythm stability", 125, 696);
+  context.strokeStyle = "#b9d4e2";
+  context.beginPath();
+  context.moveTo(125, 754);
+  context.lineTo(955, 754);
+  context.stroke();
+
+  if (summaryLines.length) {
+    context.fillStyle = "#233858";
+    context.font = "650 33px system-ui, sans-serif";
+    context.fillText(locale === "zh" ? "周节律洞察" : "Weekly insights", 125, 824);
+    context.font = "500 28px system-ui, sans-serif";
+    summaryLines.forEach((line, index) => context.fillText(line, 125, 888 + index * 43));
+  }
+  context.fillStyle = "#47667d";
+  context.font = "500 25px system-ui, sans-serif";
+  context.fillText(locale === "zh" ? "仅供观察作息变化" : "For observing changes in daily rhythms", 125, canvas.height - 134, 820);
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("海报生成失败。")), "image/png"));
   return blob;
 }

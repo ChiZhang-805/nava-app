@@ -179,16 +179,11 @@ async function main() {
     await expect(page.locator(".record-hub")).toBeVisible();
     await page.locator('[data-health-category="all"]').click();
     await expect(page.locator('[data-weekly-health-report]')).toBeVisible();
-    const detailTrigger = page.locator(".weekly-ai-summary-list li button").first();
-    await expect(detailTrigger).toBeVisible();
-    await detailTrigger.click();
-    await expect(page.locator(".weekly-detail-sheet")).toBeVisible();
-    await expect(page.locator(".weekly-detail-sheet")).toContainText("详细解释");
-    await page.waitForTimeout(320);
-    await assertPortraitFit(page, `weekly-detail-${suffix}`);
-    await page.screenshot({ path: path.join(outputDir, `weekly-detail-${suffix}.png`), fullPage: true });
-    await page.locator('.weekly-detail-sheet .nava-bottom-sheet-grabber').click();
-
+    const summaries = page.locator(".weekly-ai-summary-list li");
+    await expect(summaries).toHaveCount(3);
+    await expect(summaries.locator("button, svg")).toHaveCount(0);
+    await assertPortraitFit(page, `weekly-insights-${suffix}`);
+    await page.screenshot({ path: path.join(outputDir, `weekly-insights-${suffix}.png`), fullPage: true });
     await openRoute(page, "tab=trends", "[data-growth-screen]");
     await expect(page.locator('.growth-task-group').first().locator('[data-growth-task][data-completed="true"]')).toHaveCount(0);
     await assertPortraitFit(page, `growth-${suffix}`);

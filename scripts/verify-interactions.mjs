@@ -1455,19 +1455,12 @@ async function verifyNavigationAndMotion(page, results) {
   await assertStaticLayout(page, "record-weekly");
   await expect(page.locator(".weekly-period-controls .weekly-share-button")).toHaveCount(0);
   await expect(page.locator(".weekly-insight-card .weekly-share-button")).toBeVisible();
-  // The report body follows device-local week boundaries. Exercise either the
-  // populated insight drill-down or the real sparse-week gate after rollover.
   const weeklyInsightItems = page.locator(".weekly-insight-body li");
   if (await weeklyInsightItems.count() > 0) {
-    await expect(page.locator(".weekly-insight-body")).toContainText(/本地评审周报|local review report/i);
-    await expect(weeklyInsightItems).toHaveCount(4);
-    await weeklyInsightItems.first().locator("button").click();
-    await expect(page.locator(".weekly-detail-sheet")).toBeVisible();
-    await page.locator(".weekly-detail-sheet .nava-bottom-sheet-grabber").click();
-    await expect(page.locator(".weekly-detail-sheet")).toBeHidden();
+    await expect(weeklyInsightItems).toHaveCount(3);
+    await expect(weeklyInsightItems.locator("button, svg")).toHaveCount(0);
   } else {
-    await expect(page.locator(".weekly-insight-body")).toContainText(/至少记录 5 天|starts after 5 days/i);
-    await expect(page.locator(".weekly-detail-sheet")).toHaveCount(0);
+    await expect(page.locator(".weekly-insight-body")).toContainText(/需要至少 5 天|require at least 5 recorded days/i);
   }
   await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
   await expect(page.locator(".weekly-module-status")).toHaveCount(0);

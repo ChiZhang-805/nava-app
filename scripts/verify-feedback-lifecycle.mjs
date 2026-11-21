@@ -30,6 +30,7 @@ try { for(const [engine,type] of Object.entries({chromium,webkit})) {
   await home.dispatchEvent('pointerdown',{pointerId:4,isPrimary:true,clientX:180,clientY:550,pointerType:'touch'});
   await home.dispatchEvent('pointerup',{pointerId:4,isPrimary:true,clientX:180,clientY:350,pointerType:'touch'});
   await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','false');await expect(hint).toBeVisible();
+  await page.waitForTimeout(500);
   await hint.click();await expect(page.locator('.option-two-health-menu')).toHaveAttribute('aria-hidden','true');
 
   // Hold a parser-blocking stylesheet: authenticated initial data should reach
@@ -49,11 +50,11 @@ try { for(const [engine,type] of Object.entries({chromium,webkit})) {
   await iframe.evaluate(()=>{
    window.NavaJournal.initial.nativePhotos=true;
    const call=window.NavaJournal.call;
-   window.NavaJournal.call=(method,...args)=>method==='photo'?new Promise(resolve=>{window.resolvePhoto=resolve;}):call(method,...args);
+   window.NavaJournal.call=(method,...args)=>method==='photo'?new Promise(resolve=>{window.resolvePhoto=resolve;window.photoRequest=args[0];}):call(method,...args);
   });
-  const choose=async()=>{await frame.locator('#photo-preview').click();await frame.locator('#sheet-body').getByRole('button',{name:'选择照片',exact:true}).click();};
-  await choose();await iframe.evaluate(()=>window.resolvePhoto(null));await expect(frame.locator('#sheet-layer')).toBeVisible();
-  await frame.locator('#sheet-close').click();await choose();
+  const choose=async()=>{await frame.locator('#photo-preview').click();await expect(frame.locator('#sheet-layer')).toBeHidden();const request=await iframe.evaluate(()=>window.photoRequest);expect(request).toEqual({source:'camera',facing:'user'});};
+  await choose();await iframe.evaluate(()=>window.resolvePhoto(null));await expect(frame.locator('#sheet-layer')).toBeHidden();
+  await choose();
   await iframe.evaluate(()=>window.NavaJournal.interrupt());
   await iframe.evaluate(base64=>{const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));window.resolvePhoto(new File([bytes],'photo.png',{type:'image/png'}));},image);
   await expect(frame.locator('#photo-preview img')).toBeVisible();await expect(frame.locator('#sheet-layer')).toBeHidden();

@@ -81,16 +81,9 @@ try {
 
           await open("tab=record");
           await page.locator('[data-health-category="all"]').click();
-          const detailTrigger = page.locator(".weekly-ai-summary-list li button").first();
-          await detailTrigger.focus();
-          await detailTrigger.press("Enter");
-          await check("weekly", ".weekly-detail-sheet");
-          await expect(page.locator(".weekly-detail-content > section")).toHaveCount(3);
-          await page.locator(".weekly-detail-content footer").scrollIntoViewIfNeeded();
-          await expect(page.locator(".weekly-detail-content footer")).toContainText(/医疗诊断|not a diagnosis/);
-          await dragClose(".weekly-detail-sheet");
-          await expect(detailTrigger).toBeFocused();
-
+          const summaries = page.locator(".weekly-ai-summary-list li");
+          await expect(summaries).toHaveCount(3);
+          await expect(summaries.locator("button")).toHaveCount(0);
           await open("tab=today&view=notifications");
           await page.evaluate(async () => {
             const { publishNavaNotification } = await import("/src/services/notifications.ts");

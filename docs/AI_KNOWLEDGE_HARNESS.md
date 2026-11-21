@@ -42,9 +42,7 @@ needs five record days. Daily edits no longer request a partial AI week. This is
 generation on first view after the week closes, without a scheduled background
 job. Users can browse earlier closed weeks.
 
-The card shows four one-line bullets for the overall pattern, sleep timing
-variation, supported same-day co-variation or a lack of paired data, and one
-small action. Each opens the underlying explanation and evidence. Chinese
+The card selects three compact bullets covering the overall pattern, timing variation, and one small action. The AI response keeps its structured evidence and all four sections for cache compatibility. Chinese
 weekly summaries target 8–10 characters and accept existing seven-character
 reports. English uses 2–4 words. The backend source prepares the median
 absolute adjacent-night shift of sleep midpoint and wake time as descriptive

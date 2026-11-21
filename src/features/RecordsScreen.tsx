@@ -2,7 +2,6 @@ import type { User } from "@supabase/supabase-js";
 import { AlarmClock, Apple, BedDouble, Bot, Brain, Brush, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Drumstick, Dumbbell, Egg, Hourglass, Loader2, Milk, MoonStar, Play, RefreshCw, ScanFace, Share2, SmilePlus, Soup, Sunset, Timer, Upload, X, type LucideIcon } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import ActionButton from "../components/ActionButton";
-import BottomSheet from "../components/BottomSheet";
 import "../styles/detail-sheets.css";
 import { usePreviewActivity } from "../hooks/usePreviewActivity";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -42,7 +41,7 @@ import type { GrowthActivityKind } from "../services/productivity";
 import { clearMealRecordDraft, clearRecordDraft, loadRecordDraft, saveMealRecordDraft, saveRecordDraft, type RecordDraftModule } from "../services/drafts";
 import { loadProfile, type UserProfile } from "../services/profile";
 import { loadDietAiReport } from "../services/dietReport";
-import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport, type HealthReportSection } from "../services/healthReport";
+import { healthReportSourceRevision, loadHealthAiReport, type HealthAiReport } from "../services/healthReport";
 import { calculateWeeklyModuleScores, type WeeklyModuleKey } from "../services/weeklyModuleScores";
 import { buildHealthModulePresentations, compareRecordedPeriodAverages, healthModuleEntryView, isCompleteExerciseRecord, isCompleteFaceRecord, isCompleteNutritionRecord, isCompleteSleepRecord } from "../services/healthReportPresentation";
 import { clearSecureFaceDraft, loadSecureFaceDraft, saveSecureFaceDraft } from "../services/secureFaceDraft";
@@ -255,7 +254,6 @@ export default function RecordsScreen({
   const [weeklyAiReport, setWeeklyAiReport] = useState<HealthAiReport | null>(null);
   const [weeklyAiLoading, setWeeklyAiLoading] = useState(false);
   const [weeklyAiUnavailable, setWeeklyAiUnavailable] = useState(false);
-  const [weeklyDetailSection, setWeeklyDetailSection] = useState<HealthReportSection | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const { startDate: weeklyStart, endDate: weeklyEnd } = completedWeekDateRange(deviceDate, weekOffset);
   const [weeklyLongPressing, setWeeklyLongPressing] = useState(false);
@@ -720,7 +718,6 @@ export default function RecordsScreen({
     if (reportMode !== "weekly" || activeModule) return;
     let active = true;
     setWeeklyAiReport(null);
-    setWeeklyDetailSection(null);
     if (!forceWeeklyAiFixture && recordedDateCount(trendBundle, weeklyStart, weeklyEnd) < 5) {
       setWeeklyAiLoading(false);
       setWeeklyAiUnavailable(false);
@@ -758,8 +755,10 @@ export default function RecordsScreen({
 
   const shareWeeklyReport = useCallback(() => {
     if (!dnbReport || dnbReport.status !== "ready") return;
-    setWeeklyShare({ report: structuredClone(dnbReport), startDate: weeklyStart, endDate: weeklyEnd, weekOffset });
-  }, [dnbReport, weekOffset, weeklyStart, weeklyEnd]);
+    const summary = weeklyAiReport?.compactBullets
+      ?.filter((_, index, bullets) => index < 2 || index === bullets.length - 1).join("\n");
+    setWeeklyShare({ report: { ...dnbReport, summary: summary || dnbReport.summary }, startDate: weeklyStart, endDate: weeklyEnd, weekOffset });
+  }, [dnbReport, weeklyAiReport, weekOffset, weeklyStart, weeklyEnd]);
 
   const beginWeeklyLongPress = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dnbReport || dnbReport.status !== "ready") return;
@@ -1257,6 +1256,11 @@ export default function RecordsScreen({
     const weeklyRadarPoints = calculateWeeklyModuleScores(trendBundle, weeklyStart, weeklyEnd)
       .map((point) => ({ ...point, label: radarLabels[point.key] }));
     const weeklySections = weeklyAiReport?.sections ?? [];
+    const visibleInsights = weeklySections.flatMap((section, index) =>
+      index < 2 || index === weeklySections.length - 1
+        ? [{ id: section.id, text: weeklyAiReport?.compactBullets?.[index] ?? section.title }]
+        : []
+    );
     const weeklyTitle = locale === "zh"
       ? (weekOffset === 0 ? "AI 上周节律洞察" : "AI 周节律洞察")
       : (weekOffset === 0 ? "Last week’s AI insights" : "Weekly AI insights");
@@ -1321,43 +1325,20 @@ export default function RecordsScreen({
                 <strong>{weeklyAiReport?.provider === "demo"
                   ? (locale === "zh" ? "演示周节律洞察" : "Demo weekly insights")
                   : weeklyTitle}</strong>
-                <button type="button" className="weekly-share-button" aria-label={locale === "zh" ? "保存海报" : "Save poster"} disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={22} aria-hidden="true" /></button>
+                <button type="button" className="weekly-share-button" aria-label={locale === "zh" ? "分享节律海报" : "Share rhythm poster"} disabled={!dnbReport || dnbReport.status !== "ready"} onClick={() => void shareWeeklyReport()}><Share2 size={22} aria-hidden="true" /></button>
               </header>
               <div className="weekly-insight-body" aria-live="polite">
                 {weeklyAiLoading
                   ? <SkeletonLines count={4} />
                   : weeklyRecordedDays < 5
                     ? <p>{locale === "zh" ? `这周有 ${weeklyRecordedDays} 个记录日。AI 周报需要至少 5 天记录。` : `${weeklyRecordedDays} days logged. Weekly insights require at least 5 recorded days.`}</p>
-                    : <div className="weekly-ai-summary-list">
-                        <ul>{weeklySections.map((section, index) => (
-                          <li key={section.id}><button type="button" onClick={() => setWeeklyDetailSection(section)}><span>{weeklyAiReport?.compactBullets?.[index] ?? section.title}</span><ChevronRight size={15} aria-hidden="true" /></button></li>
-                        ))}</ul>
-                      </div>}
+                    : visibleInsights.length > 0 && <ul className="weekly-ai-summary-list">
+                        {visibleInsights.map((insight) => <li key={insight.id}><span>{insight.text}</span></li>)}
+                      </ul>}
                 {weeklyAiUnavailable && <small>{locale === "zh" ? "真实 AI 洞察暂不可用，请稍后重试。" : "Real AI insights are temporarily unavailable."}</small>}
                 <MascotImage className="weekly-insight-mascot" animatedSrc={weeklyCuriousMascot} staticSrc={weeklyRunMascot} alt="" loading="lazy" />
               </div>
             </section>
-            {weeklyDetailSection && <BottomSheet className="weekly-detail-sheet" label={weeklyDetailSection.title} closeLabel={locale === "zh" ? "关闭详细解读，也可以向下拖动" : "Close detailed interpretation, or drag down"} onClose={() => setWeeklyDetailSection(null)}>
-              <article className="weekly-detail-content">
-                <header>
-                  <div><small>{locale === "zh" ? "真实 AI 个性化解读" : "Personalized AI interpretation"}</small><h2 id="weekly-detail-title">{weeklyDetailSection.title}</h2></div>
-                </header>
-                <p className="weekly-detail-headline">{weeklyDetailSection.headline}</p>
-                <section>
-                  <strong>{locale === "zh" ? "详细解释" : "Detailed interpretation"}</strong>
-                  <p>{weeklyDetailSection.explanation}</p>
-                </section>
-                <section>
-                  <strong>{locale === "zh" ? "依据的真实记录" : "Evidence from your records"}</strong>
-                  <ul>{weeklyDetailSection.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
-                </section>
-                <section className="weekly-detail-action">
-                  <strong>{locale === "zh" ? "下一步建议" : "Next action"}</strong>
-                  <p>{weeklyDetailSection.action}</p>
-                </section>
-                <footer><span>{locale === "zh" ? "结论置信度" : "Confidence"}</span><b data-confidence={weeklyDetailSection.confidence}>{locale === "zh" ? ({ high: "较高", medium: "中等", low: "有限" }[weeklyDetailSection.confidence]) : weeklyDetailSection.confidence}</b><small>{locale === "zh" ? "依据所选周的已授权记录，供观察作息变化。" : "Based on consent-authorized records for the selected week."}</small></footer>
-              </article>
-            </BottomSheet>}
           </div>
     );
     return (

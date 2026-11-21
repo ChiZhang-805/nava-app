@@ -186,7 +186,9 @@ try {
 
     await page.locator('[data-tab="record"]').click();
     await expect(page.locator('[data-health-explorer]')).toBeVisible();
+    await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'all');
     await expect(page.locator('[data-health-category]')).toHaveCount(8);
+    await page.locator('[data-health-category="mood"]').click();
     const populatedHubGeometry = await inspectHealthExplorer(page);
     await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-explorer.png`) });
     await page.evaluate(() => {
@@ -195,6 +197,8 @@ try {
       localStorage.setItem('nava.review.demo.empty-snapshot-date.v1',date);
     });
     await page.reload({waitUntil:'networkidle'});
+    await expect(page.locator('[data-health-explorer]')).toHaveAttribute('data-category', 'all');
+    await page.locator('[data-health-category="mood"]').click();
     await expect(page.locator('.health-explorer-card[aria-hidden="false"] .health-explorer-empty')).toBeVisible();
     const emptyHubGeometry = await inspectHealthExplorer(page);
     await page.locator('.phone-frame').screenshot({ path: path.join(outputDir, `${viewport.name}-record-empty.png`) });

@@ -1,5 +1,5 @@
 /* Content-only styles: positioning, safe areas, motion and dismissal belong to BottomSheet. */
-.nava-bottom-sheet:is(.today-todo-date-sheet, .weekly-detail-sheet, .notification-detail-sheet) {
+.nava-bottom-sheet:is(.today-todo-date-sheet, .notification-detail-sheet) {
   color: var(--skin-ink, #153e51);
   background: linear-gradient(var(--skin-surface-strong, #f6fcff), var(--skin-surface-strong, #f6fcff)), #f6fcff;
 }
@@ -18,17 +18,6 @@
   border: 1px solid var(--skin-line, #cfe6ea); border-radius: 16px; padding: 10px 14px;
   color: var(--skin-ink, #245464); background: var(--skin-field, #fff); font: inherit; font-size: 16px;
 }
-.weekly-detail-content { display: grid; gap: 14px; min-width: 0; }
-.weekly-detail-content header small { color: var(--skin-accent, #2685aa); font-size: 12px; font-weight: 700; }
-.weekly-detail-content h2 { margin: 5px 0 0; font-size: 22px; line-height: 1.3; }
-.weekly-detail-content > section { display: grid; gap: 7px; }
-.weekly-detail-content > section > strong { color: var(--skin-accent, #147ca4); font-size: 14px; }
-.weekly-detail-content > section :is(p, ul) { margin: 0; color: var(--skin-ink, #345d70); font-size: 15px; line-height: 1.65; }
-.weekly-detail-content > section ul { display: grid; gap: 6px; padding-left: 19px; }
-.weekly-detail-content footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; color: var(--skin-muted, #62808d); font-size: 13px; }
-.weekly-detail-content footer b { border-radius: 999px; padding: 4px 8px; color: var(--skin-accent, #176681); background: var(--skin-field, #fff); }
-.weekly-detail-content footer b[data-confidence="low"] { color: #8a6724; background: #fff5d5; }
-.weekly-detail-content footer small { flex-basis: 100%; min-width: 0; font-size: 12px; line-height: 1.5; }
 .notification-detail-content .notification-detail-heading { padding-right: 0; }
 .notification-detail-content h2 { margin: 16px 0 0; font-size: 20px; line-height: 1.35; }
 .notification-detail-content p { margin: 12px 0 0; color: var(--skin-muted, #4f7180); font-size: 15px; line-height: 1.65; white-space: pre-wrap; }

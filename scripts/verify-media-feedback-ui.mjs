@@ -75,31 +75,24 @@ try {
       };
       await open("tab=record&module=face");
       const journal = page.frameLocator(".journal-experience iframe");
-      const camera = journal.locator("#sheet-layer");
-      await journal.locator("#photo-preview").focus(); await journal.locator("#photo-preview").press("Enter");
-      await expect(camera).toBeVisible();
-      await expect(camera).toContainText("选择照片");
-      await journal.locator("body").evaluate(() => { window.__cameraTracks = [...document.querySelector(".camera-video").srcObject.getTracks()]; });
-      await interrupt(); await expect(camera).toBeVisible();
-      assert.equal(await journal.locator("body").evaluate(() => window.__cameraTracks.every(track => track.readyState === "ended")), true);
-      await journal.locator("#sheet-close").focus(); await journal.locator("#sheet-close").press("Enter"); await expect(camera).toBeHidden();
-      await journal.locator("#photo-preview").focus(); await journal.locator("#photo-preview").press("Enter"); await expect(camera).toBeVisible();
-      await expect.poll(() => camera.locator(".camera-video").evaluate((video) => video.readyState), { timeout: 30000 }).toBeGreaterThanOrEqual(2);
-      const capture = journal.getByRole("button", { name: "拍下这一张", exact: true }); await capture.focus(); await capture.press("Enter"); await expect(camera).toBeHidden();
-      await expect(journal.locator("#photo-preview img")).toBeVisible();
-      await page.screenshot({ path: `${output}/camera-${viewport.width}.png` });
-      const geometry = await journal.locator("#photo-preview").evaluate((node) => { const box = node.getBoundingClientRect(), screen = document.getElementById("screen").getBoundingClientRect(); return box.left >= screen.left && box.right <= screen.right && box.bottom <= screen.bottom; });
-      assert.equal(geometry, true);
-      await open("tab=record&module=face");
-      const pendingJournal = page.frameLocator(".journal-experience iframe");
-      await pendingJournal.locator("body").evaluate(() => {
-        const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-        navigator.mediaDevices.getUserMedia = async (...args) => { const stream = await original(...args); window.__lateTracks = stream.getTracks(); await new Promise((resolve) => { window.__releaseCamera = resolve; }); return stream; };
+      await journal.locator("#photo-preview").focus();
+      const pendingPhoto = page.waitForEvent("filechooser");
+      await journal.locator("#photo-preview").press("Enter");
+      const chooser = await pendingPhoto;
+      await expect(journal.locator("#sheet-layer")).toBeHidden();
+      await expect(journal.locator("#photo-library")).toHaveAttribute("capture", "user");
+      await chooser.setFiles([]);
+      await expect(journal.locator("#photo-preview img")).toHaveCount(0);
+      const selectedPhoto = page.waitForEvent("filechooser");
+      await journal.locator("#photo-preview").press("Enter");
+      await (await selectedPhoto).setFiles({
+        name: "camera.png",
+        mimeType: "image/png",
+        buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==", "base64"),
       });
-      await pendingJournal.locator("#photo-preview").focus(); await pendingJournal.locator("#photo-preview").press("Enter");
-      await expect.poll(() => pendingJournal.locator("body").evaluate(() => Boolean(window.__releaseCamera))).toBe(true);
-      await pendingJournal.locator("#sheet-close").focus(); await pendingJournal.locator("#sheet-close").press("Enter"); await pendingJournal.locator("body").evaluate(() => window.__releaseCamera());
-      await expect.poll(() => pendingJournal.locator("body").evaluate(() => window.__lateTracks.every(track => track.readyState === "ended"))).toBe(true);
+      await expect(journal.locator("#photo-preview img")).toBeVisible();
+      await expect(journal.locator("#sheet-layer")).toBeHidden();
+      await page.screenshot({ path: `${output}/camera-${viewport.width}.png` });
       await open("tab=ai");
       const mic = page.locator(".chat-voice-button"); await mic.focus(); await page.keyboard.press("Enter");
       await expect(mic).toHaveAttribute("aria-pressed", "true");

@@ -52,11 +52,11 @@ test("diet report prompt repeats per-item length gates and uses accurately count
 test("both AI functions keep a valid model report when only its compact labels need normalization", () => {
   for (const source of [healthFunction, dietFunction]) {
     assert.match(source, /compactBullets/);
-    assert.match(source, /Array\.from\(cleaned\)\.length === 7/);
     assert.match(source, /\^\\p\{Script=Han\}\{7\}\$\/u/);
     assert.match(source, /fallbackHan/);
     assert.match(source, /slice\(0, 7\)/);
   }
+  assert.ok(healthFunction.includes("{7,10}"));
   assert.match(healthFunction, /不能只是截断 headline/);
   assert.match(dietFunction, /不能仅截断 B 项/);
   assert.match(healthFunction, /bullets: \{ \.\.\.report, sourceFingerprint: fingerprint \}/);
@@ -131,9 +131,9 @@ test("detailed report prose and auxiliary AI routes remain wired without six unu
   assert.match(reportExplorer, /data-health-category="all"[\s\S]+onClick=\{onOpenWeekly\}/);
   assert.match(recordsScreen, /onOpenWeekly=\{\(\) => \{ setReportMode\("weekly"\)/);
   assert.match(recordsScreen, /weeklyContent=\{weeklyContent\}/);
-  assert.match(recordsScreen, /recordedDateCount\(trendBundle, period\.startDate, availableEndDate\) < 5/);
-  assert.match(recordsScreen, /scope: "weekly", endDate: availableEndDate/);
-  assert.match(recordsScreen, /AI 本周节律洞察/);
+  assert.match(recordsScreen, /recordedDateCount\(trendBundle, weeklyStart, weeklyEnd\) < 5/);
+  assert.match(recordsScreen, /scope: "weekly", endDate: weeklyEnd/);
+  assert.match(recordsScreen, /AI 上周节律洞察/);
 
   assert.match(aiService, /functions\.invoke\("ai-extract-data"/);
   assert.match(aiService, /functions\.invoke<Response>\("ai-chat-reply"/);

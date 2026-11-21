@@ -54,9 +54,9 @@ for(const [engine,type] of Object.entries(process.env.NAVA_LAYOUT_ENGINE==='webk
   await page.screenshot({path:`${out}/${engine}-${width}-face-review.png`});
   await frame.locator('.review-deck-dot').last().click();await frame.locator('.review-slide-record').first().click();await expect(frame.locator('#sheet-body')).toContainText('自然光下肤色均匀');await frame.locator('#sheet-close').click();
   await frame.locator('.review-add-entry').click();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','entry');await frame.locator('#back').click();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','review');
-  await frame.locator('.review-add-entry').click();await frame.locator('#photo-preview').click();
-  const chooserPromise=page.waitForEvent('filechooser');await frame.locator('#sheet-body').getByRole('button',{name:'选择照片',exact:true}).click();const chooser=await chooserPromise;
-  await expect(frame.locator('#sheet-layer')).toBeVisible();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','entry');
+  await frame.locator('.review-add-entry').click();
+  const chooserPromise=page.waitForEvent('filechooser');await frame.locator('#photo-preview').click();const chooser=await chooserPromise;
+  await expect(frame.locator('#sheet-layer')).toBeHidden();await expect(frame.locator('#screen')).toHaveAttribute('data-scene','entry');
   await chooser.setFiles({name:'fixture.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64')});
   await expect(frame.locator('#sheet-layer')).toBeHidden();await expect(frame.locator('#photo-preview img')).toBeVisible();
   await frame.locator('#back').click();await frame.locator('#review-home').click();await expect(page).toHaveURL(/#tab=record$/);

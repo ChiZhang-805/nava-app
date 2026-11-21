@@ -40,13 +40,13 @@ try {
         await expect(page.locator(".weekly-insight-mascot")).toBeVisible();
       };
       await open();
-      await expect(page.locator(".weekly-ai-summary-list li")).toHaveCount(4);
+      await expect(page.locator(".weekly-ai-summary-list li")).toHaveCount(3);
       const measure = async (state) => {
         const data = await page.locator(".weekly-health-report").evaluate((report) => {
           const box = (node) => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height }; };
           const font = (node) => parseFloat(getComputedStyle(node).fontSize);
           const card = report.querySelector(".weekly-insight-card");
-          const text = [...card.querySelectorAll("p, li button span")].filter((node) => node.getClientRects().length > 0);
+          const text = [...card.querySelectorAll("p, li > span")].filter((node) => node.getClientRects().length > 0);
           const chart = report.querySelector(".weekly-trend-card");
           const svg = chart.querySelector("svg[role=img]") ?? chart.querySelector(".line-trend-chart svg, .weekly-radar-chart svg");
           const svgText = [...chart.querySelectorAll(".trend-date, .trend-value, .weekly-radar-caption, .weekly-radar-score")];
@@ -74,7 +74,7 @@ try {
         assert(data.stats.every(({ label, value, labelBox, valueBox, cell }) => label >= 11 && value >= 13 && labelBox.right + 3 <= valueBox.left && Math.abs((labelBox.top + labelBox.bottom - valueBox.top - valueBox.bottom) / 2) <= 1 && labelBox.left >= cell.left && valueBox.right <= cell.right), `${width}/${state}: stats must stay on one row`);
         assert(data.date >= 13);
         for (const item of data.text) {
-          assert(item.font >= 14 && !item.clipped, `${width}/${state}: text is too small or clipped`);
+          assert(item.font >= 14 && !item.clipped, `${width}/${state}: text is too small or clipped ${JSON.stringify(item)}`);
           if (item.bullet) assert(item.lines <= (state === "english" && width === 320 ? 2 : 1), `${width}/${state}: short insight wraps`);
           assert(item.left >= data.card.left - 1 && item.right <= data.card.right + 1 && item.bottom <= data.card.bottom + 1, `${width}/${state}: text outside card ${JSON.stringify({ item, card: data.card, mascot: data.mascot })}`);
           const overlapsCat = item.right > data.mascot.left + 1 && item.left < data.mascot.right - 1 && item.bottom > data.mascot.top + 1 && item.top < data.mascot.bottom - 1;
@@ -85,20 +85,31 @@ try {
       };
       await measure("populated-trend");
       await expect(page.locator(".weekly-trend-card > header strong")).toHaveCSS("font-size", "16px");
+      if (height >= 812) {
+        const fits = await page.locator(".weekly-insight-card").evaluate((card) =>
+          card.getBoundingClientRect().bottom <= card.closest(".health-explorer-weekly-content").getBoundingClientRect().bottom + 1
+        );
+        assert(fits, `${width}: weekly report must fit on its first screen`);
+      }
       await page.screenshot({ path: `${output}/${width}-populated-top.png` });
       await page.locator(".weekly-ai-summary-list li").last().scrollIntoViewIfNeeded();
       await page.screenshot({ path: `${output}/${width}-populated-insights.png` });
       const footerClear = await page.locator(".weekly-insight-card").evaluate((card) => {
-        const main = card.closest(".figma-screen-scroll") ?? card.closest("main");
+        const main = card.closest(".health-explorer-weekly-content");
         if (main) main.scrollTop = main.scrollHeight;
         const cardBottom = card.getBoundingClientRect().bottom;
         const navTop = document.querySelector(".bottom-nav").getBoundingClientRect().top;
         return { clear: cardBottom <= navTop, cardBottom, navTop, scrollTop: main?.scrollTop ?? 0, scrollHeight: main?.scrollHeight ?? 0, clientHeight: main?.clientHeight ?? 0, mainClass: main?.className ?? "", paddingBottom: main ? getComputedStyle(main).paddingBottom : "" };
       });
       assert(footerClear.clear, `${width}: report cannot scroll clear of navigation ${JSON.stringify(footerClear)}`);
-      await page.locator(".weekly-ai-summary-list li button").first().click();
-      await expect(page.locator(".weekly-detail-sheet")).toBeVisible();
-      await page.locator(".weekly-detail-sheet .nava-bottom-sheet-grabber").click();
+      await expect(page.locator(".weekly-ai-summary-list").getByRole("button")).toHaveCount(0);
+      await expect(page.locator(".weekly-ai-summary-list svg")).toHaveCount(0);
+      await page.getByRole("button", { name: "分享节律海报" }).click();
+      const poster = page.getByRole("dialog", { name: "分享前确认" });
+      await expect(poster.getByRole("img", { name: "即将分享的完整海报" })).toBeVisible();
+      await expect(poster.getByRole("button", { name: "确认并分享 / 保存" })).toBeEnabled();
+      await page.screenshot({ path: `${output}/${width}-poster.png` });
+      await poster.getByRole("button", { name: "关闭分享预览" }).click();
       await page.locator(".weekly-chart-switch").click();
       await expect(page.locator(".weekly-radar-caption")).toHaveCount(6);
       await measure("populated-radar");
@@ -110,12 +121,12 @@ try {
       await measure("empty");
       await page.screenshot({ path: `${output}/${width}-empty.png` });
       await open(true, "en");
-      await expect(page.locator(".weekly-ai-summary-list li")).toHaveCount(4);
+      await expect(page.locator(".weekly-ai-summary-list li")).toHaveCount(3);
       await measure("english");
       await page.screenshot({ path: `${output}/${width}-english.png` });
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   }
   await writeFile(`${output}/report.json`, JSON.stringify({ passed: true, results }, null, 2));
-  console.log("Weekly readability: populated, empty, radar, English and detail interactions passed at five viewports.");
+  console.log("Weekly readability: populated, empty, radar, English and share preview passed at five viewports.");
 } finally { await browser.close(); await server.close(); }

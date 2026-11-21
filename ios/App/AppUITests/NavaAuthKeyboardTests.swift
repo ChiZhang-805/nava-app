@@ -18,13 +18,16 @@ final class NavaAuthKeyboardTests: XCTestCase {
         // A fresh simulator has no saved permission choice.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let permission = springboard.alerts.firstMatch
-        let cancel = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "Close", "取消", "关闭"])).firstMatch
+        let cancelButtons = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "Close", "取消", "关闭"]))
+        func visibleCancel() -> XCUIElement? {
+            cancelButtons.allElementsBoundByIndex.first(where: { $0.isHittable })
+        }
         // Either a permission sheet or the picker can appear first.
         let presentation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            cancel.exists || permission.exists
+            visibleCancel() != nil || permission.exists
         }, object: nil)
         _ = XCTWaiter.wait(for: [presentation], timeout: 60)
-        if !cancel.exists && permission.exists {
+        if visibleCancel() == nil && permission.exists {
             capture("system-photo-permission")
             let allowFullAccess = permission.buttons.matching(NSPredicate(
                 format: "label IN %@",
@@ -33,23 +36,27 @@ final class NavaAuthKeyboardTests: XCTestCase {
             XCTAssertTrue(allowFullAccess.exists, springboard.debugDescription)
             allowFullAccess.tap()
         }
-        if !cancel.waitForExistence(timeout: 30) {
+        let photoPresentation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in visibleCancel() != nil }, object: nil)
+        guard XCTWaiter.wait(for: [photoPresentation], timeout: 30) == .completed, let photoCancel = visibleCancel() else {
             capture("system-photo-not-presented")
             XCTFail(app.debugDescription + "\n" + springboard.debugDescription)
+            return
         }
         capture("system-photo-library")
-        cancel.tap()
+        photoCancel.tap()
         XCTAssertTrue(web.staticTexts["Photo cancelled"].waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertEqual(web.textFields["Preserved draft"].value as? String, "Keep this draft")
         web.buttons["Choose file"].tap()
         // Files starts its remote UI extension lazily on a fresh simulator.
         // Keep the same real presentation/cancel/draft assertions; allow cold start.
-        if !cancel.waitForExistence(timeout: 60) {
+        let filePresentation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in visibleCancel() != nil }, object: nil)
+        guard XCTWaiter.wait(for: [filePresentation], timeout: 60) == .completed, let fileCancel = visibleCancel() else {
             capture("system-file-not-presented")
             XCTFail(app.debugDescription + "\n" + springboard.debugDescription)
+            return
         }
         capture("system-file-browser")
-        cancel.tap()
+        fileCancel.tap()
         XCTAssertTrue(web.buttons["Choose file"].waitForExistence(timeout: 10))
         XCTAssertEqual(web.textFields["Preserved draft"].value as? String, "Keep this draft")
         XCUIDevice.shared.press(.home)
@@ -68,7 +75,11 @@ final class NavaAuthKeyboardTests: XCTestCase {
         let account = web.textFields.firstMatch
         XCTAssertTrue(account.waitForExistence(timeout: 30))
         let logo = web.images["NAVA"].firstMatch
-        XCTAssertTrue(logo.waitForExistence(timeout: 10), app.debugDescription)
+        if !logo.waitForExistence(timeout: 25) {
+            capture("login-logo-not-present")
+            XCTFail(app.debugDescription)
+            return
+        }
         // The system status bar is owned by SpringBoard and is not exposed in
         // this app's accessibility tree on iOS 26. These are the two explicit
         // simulator fixtures created by test-ios-auth-keyboard.sh, in points.
